@@ -774,6 +774,7 @@ h2 {
 }
 
 .demo-card {
+  height: 100%;
   overflow: hidden;
   border-radius: 22px;
   box-shadow: 0 12px 30px rgba(100, 73, 35, 0.12);
@@ -788,7 +789,7 @@ h2 {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 140px;
+  min-height: 0;
 }
 
 .demo-card__badge {
@@ -929,7 +930,7 @@ h2 {
 }
 
 .demo-card--compact .demo-card__media {
-  min-height: 110px;
+  min-height: 0;
 }
 
 .delta-list {
@@ -1015,6 +1016,7 @@ h2 {
 }
 
 .perf-tile {
+  height: 100%;
   overflow: hidden;
   border-radius: 18px;
   box-shadow: 0 8px 22px rgba(100, 73, 35, 0.1);
@@ -1022,6 +1024,7 @@ h2 {
 
 .perf-tile__media {
   position: relative;
+  height: 100%;
   min-height: 84px;
 }
 
