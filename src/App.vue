@@ -179,11 +179,138 @@
         </section>
       </aside>
     </section>
+
+    <section class="compare-section">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Migration View</p>
+          <h2>Legacy Waterfall vs MasonryGrid</h2>
+        </div>
+        <p class="section-copy">
+          Both blocks below render the same subset. The left side keeps the old
+          prop language, and the right side shows the more explicit API.
+        </p>
+      </div>
+
+      <div class="compare-grid">
+        <article class="compare-card">
+          <header class="compare-card__head">
+            <div>
+              <h3>LegacyWaterfall</h3>
+              <p>
+                Old-style props: <code>col</code>, <code>resolution</code>,
+                <code>expand</code>.
+              </p>
+            </div>
+            <span class="compare-badge">legacy</span>
+          </header>
+          <pre
+            class="code-block code-block--small"
+          ><code>{{ legacyExample }}</code></pre>
+          <div class="compare-preview">
+            <LegacyWaterfall
+              :data="legacyCards"
+              :col="2"
+              :gap="12"
+              :row-gap="12"
+              resolution="3/4"
+              :expand="44"
+            >
+              <template #item="{ item }">
+                <article
+                  :class="[
+                    'demo-card demo-card--compact',
+                    { 'demo-card--banner': item.widthFill },
+                  ]"
+                  :style="item.cardStyle"
+                >
+                  <div class="demo-card__media" :style="item.mediaStyle"></div>
+                  <div class="demo-card__body">
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.description }}</p>
+                  </div>
+                </article>
+              </template>
+            </LegacyWaterfall>
+          </div>
+        </article>
+
+        <article class="compare-card">
+          <header class="compare-card__head">
+            <div>
+              <h3>MasonryGrid</h3>
+              <p>
+                New-style props: <code>columns</code>, <code>aspectRatio</code>,
+                <code>extraHeight</code>.
+              </p>
+            </div>
+            <span class="compare-badge compare-badge--new">new</span>
+          </header>
+          <pre
+            class="code-block code-block--small"
+          ><code>{{ modernExample }}</code></pre>
+          <div class="compare-preview">
+            <MasonryGrid
+              :data="modernCards"
+              :columns="2"
+              :gap="12"
+              :row-gap="12"
+              aspect-ratio="3/4"
+              :extra-height="44"
+              item-key="id"
+              full-row="fullRow"
+            >
+              <template #item="{ item }">
+                <article
+                  :class="[
+                    'demo-card demo-card--compact',
+                    { 'demo-card--banner': item.fullRow },
+                  ]"
+                  :style="item.cardStyle"
+                >
+                  <div class="demo-card__media" :style="item.mediaStyle"></div>
+                  <div class="demo-card__body">
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.description }}</p>
+                  </div>
+                </article>
+              </template>
+            </MasonryGrid>
+          </div>
+        </article>
+      </div>
+
+      <div class="delta-list">
+        <article class="delta-item">
+          <strong>Key strategy</strong>
+          <p>
+            Legacy demos tend to rely on <code>item.id</code>; MasonryGrid makes
+            that strategy explicit with <code>itemKey</code>.
+          </p>
+        </article>
+        <article class="delta-item">
+          <strong>Semantic props</strong>
+          <p>
+            <code>columns</code>, <code>aspectRatio</code> and
+            <code>extraHeight</code> read more like a public API than internal
+            layout math.
+          </p>
+        </article>
+        <article class="delta-item">
+          <strong>Banner rows</strong>
+          <p>
+            The old <code>widthFill</code> flag becomes the more descriptive
+            <code>fullRow</code> in the new component.
+          </p>
+        </article>
+      </div>
+    </section>
   </main>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
+import LegacyWaterfall from "./components/LegacyWaterfall.vue";
 import MasonryGrid from "./components/MasonryGrid.vue";
 
 type DemoCard = {
@@ -282,6 +409,24 @@ const usageExample = computed(() => {
 </MasonryGrid>`;
 });
 
+const legacyExample = `<LegacyWaterfall
+  :data="list"
+  :col="2"
+  :gap="12"
+  resolution="3/4"
+  :expand="44"
+/>`;
+
+const modernExample = `<MasonryGrid
+  :data="list"
+  :columns="2"
+  :gap="12"
+  aspect-ratio="3/4"
+  :extra-height="44"
+  item-key="id"
+  full-row="fullRow"
+/>`;
+
 const createCard = (index: number): DemoCard => {
   const [start, end] = palette[index % palette.length];
   const ratio = ratioPool[index % ratioPool.length];
@@ -308,6 +453,20 @@ const createCard = (index: number): DemoCard => {
 const cards = ref(
   Array.from({ length: 36 }, (_, index) => createCard(index + 1))
 );
+
+const legacyCards = computed(() => {
+  return cards.value.slice(0, 8).map((item, index) => ({
+    ...item,
+    widthFill: index === 2,
+  }));
+});
+
+const modernCards = computed(() => {
+  return cards.value.slice(0, 8).map((item, index) => ({
+    ...item,
+    fullRow: index === 2,
+  }));
+});
 
 const shuffleCards = () => {
   cards.value = [...cards.value]
@@ -624,6 +783,91 @@ h2 {
   line-height: 1.55;
 }
 
+.compare-section {
+  margin-top: 40px;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.compare-card,
+.delta-item {
+  padding: 22px;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 14px 44px rgba(95, 69, 31, 0.08);
+}
+
+.compare-card__head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.compare-card__head h3 {
+  margin: 0 0 6px;
+}
+
+.compare-card__head p {
+  margin: 0;
+  line-height: 1.55;
+  color: #6d5b45;
+}
+
+.compare-badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f2e4cd;
+  color: #6c4b1e;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.compare-badge--new {
+  background: #ddeee3;
+  color: #24553d;
+}
+
+.compare-preview {
+  padding: 12px;
+  border-radius: 24px;
+  background: #fffaf2;
+}
+
+.code-block--small {
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.demo-card--compact .demo-card__media {
+  min-height: 110px;
+}
+
+.delta-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.delta-item strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.delta-item p {
+  margin: 0;
+  line-height: 1.55;
+  color: #6d5b45;
+}
+
 @media (max-width: 980px) {
   .content-grid {
     grid-template-columns: 1fr;
@@ -632,6 +876,11 @@ h2 {
   .section-heading {
     align-items: start;
     flex-direction: column;
+  }
+
+  .compare-grid,
+  .delta-list {
+    grid-template-columns: 1fr;
   }
 }
 

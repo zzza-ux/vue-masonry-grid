@@ -10,6 +10,7 @@
 - `scrollToIndex()` 调用示例
 - API 说明卡片
 - 可复制的基础接入代码片段
+- `LegacyWaterfall` 与 `MasonryGrid` 的迁移对比区
 
 ## 运行
 
@@ -23,5 +24,6 @@ npm run dev
 ## 文件
 
 - `src/components/MasonryGrid.vue`: 独立可演示的组件副本
+- `src/components/LegacyWaterfall.vue`: 保留旧接口语义的对照组件
 - `src/App.vue`: 交互演示页 + API/Usage 说明区
 - `src/style.css`: 全局样式
