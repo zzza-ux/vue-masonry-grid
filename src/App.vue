@@ -35,12 +35,12 @@
     <section class="control-panel">
       <label>
         <span>Columns</span>
-        <input v-model="columns" type="range" min="2" max="5" />
+        <input v-model.number="columns" type="range" min="2" max="5" />
         <strong>{{ columns }}</strong>
       </label>
       <label>
         <span>Gap</span>
-        <input v-model="gap" type="range" min="8" max="24" />
+        <input v-model.number="gap" type="range" min="8" max="24" />
         <strong>{{ gap }}px</strong>
       </label>
       <label class="toggle">
