@@ -51,8 +51,8 @@
         <input v-model="windowScroll" type="checkbox" />
         <span>Use window scroll</span>
       </label>
-      <button class="ghost-btn" @click="scrollToBanner">
-        Scroll To Banner
+      <button class="ghost-btn" @click="scrollToExampleItem">
+        Scroll To Item 20
       </button>
     </section>
 
@@ -83,18 +83,11 @@
               :extra-height="0"
               :virtual="virtual"
               :scroll-target="windowScroll ? 'window' : 'parent'"
-              full-row="fullRow"
             >
               <template #item="{ item, index }">
-                <article
-                  :class="['demo-card', { 'demo-card--banner': item.fullRow }]"
-                  :style="item.cardStyle"
-                >
+                <article class="demo-card" :style="item.cardStyle">
                   <div class="demo-card__media" :style="item.mediaStyle">
                     <span class="demo-card__badge">#{{ index + 1 }}</span>
-                    <span v-if="item.fullRow" class="demo-card__label">{{
-                      item.title
-                    }}</span>
                   </div>
                 </article>
               </template>
@@ -112,18 +105,11 @@
             :extra-height="0"
             :virtual="virtual"
             :scroll-target="windowScroll ? 'window' : 'parent'"
-            full-row="fullRow"
           >
             <template #item="{ item, index }">
-              <article
-                :class="['demo-card', { 'demo-card--banner': item.fullRow }]"
-                :style="item.cardStyle"
-              >
+              <article class="demo-card" :style="item.cardStyle">
                 <div class="demo-card__media" :style="item.mediaStyle">
                   <span class="demo-card__badge">#{{ index + 1 }}</span>
-                  <span v-if="item.fullRow" class="demo-card__label">{{
-                    item.title
-                  }}</span>
                 </div>
               </article>
             </template>
@@ -220,17 +206,10 @@
             >
               <template #item="{ item }">
                 <article
-                  :class="[
-                    'demo-card demo-card--compact',
-                    { 'demo-card--banner': item.widthFill },
-                  ]"
+                  class="demo-card demo-card--compact"
                   :style="item.cardStyle"
                 >
-                  <div class="demo-card__media" :style="item.mediaStyle">
-                    <span v-if="item.widthFill" class="demo-card__label">{{
-                      item.title
-                    }}</span>
-                  </div>
+                  <div class="demo-card__media" :style="item.mediaStyle"></div>
                 </article>
               </template>
             </LegacyWaterfall>
@@ -260,21 +239,13 @@
               aspect-ratio="3/4"
               :extra-height="0"
               item-key="id"
-              full-row="fullRow"
             >
               <template #item="{ item }">
                 <article
-                  :class="[
-                    'demo-card demo-card--compact',
-                    { 'demo-card--banner': item.fullRow },
-                  ]"
+                  class="demo-card demo-card--compact"
                   :style="item.cardStyle"
                 >
-                  <div class="demo-card__media" :style="item.mediaStyle">
-                    <span v-if="item.fullRow" class="demo-card__label">{{
-                      item.title
-                    }}</span>
-                  </div>
+                  <div class="demo-card__media" :style="item.mediaStyle"></div>
                 </article>
               </template>
             </MasonryGrid>
@@ -299,10 +270,10 @@
           </p>
         </article>
         <article class="delta-item">
-          <strong>Banner rows</strong>
+          <strong>Cleaner demos</strong>
           <p>
-            The old <code>widthFill</code> flag becomes the more descriptive
-            <code>fullRow</code> in the new component.
+            This page now keeps uneven cards as pure masonry items, so the
+            layout behavior is easier to inspect.
           </p>
         </article>
       </div>
@@ -356,15 +327,11 @@
             aspect-ratio="1"
             item-key="id"
             :virtual="virtual"
-            full-row="fullRow"
           >
             <template #item="{ item, index }">
               <article class="perf-tile">
                 <div class="perf-tile__media" :style="item.mediaStyle">
                   <span class="perf-tile__index">#{{ index + 1 }}</span>
-                  <span v-if="item.fullRow" class="demo-card__label"
-                    >full row</span
-                  >
                 </div>
               </article>
             </template>
@@ -385,7 +352,6 @@ type DemoCard = {
   title: string;
   description: string;
   resolution: string;
-  fullRow?: boolean;
   cardStyle: Record<string, string>;
   mediaStyle: Record<string, string>;
 };
@@ -471,7 +437,6 @@ const usageExample = computed(() => {
   item-key="id"
   :virtual="${virtual.value}"
   scroll-target="${windowScroll.value ? "window" : "parent"}"
-  full-row="fullRow"
 >
   <template #item="{ item }">
     <Card :item="item" />
@@ -494,25 +459,21 @@ const modernExample = `<MasonryGrid
   aspect-ratio="3/4"
   :extra-height="0"
   item-key="id"
-  full-row="fullRow"
 />`;
 
 const createCard = (index: number): DemoCard => {
   const [start, end] = palette[index % palette.length];
   const ratio = ratioPool[index % ratioPool.length];
-  const fullRow = index > 0 && index % 9 === 0;
 
   return {
     id: `card-${index}`,
-    title: fullRow ? `Banner Break ${index}` : `Card ${index}`,
-    description: fullRow
-      ? "This item uses the full-row mode to demonstrate section-like content in the flow."
-      : "Mixed aspect ratios simulate real cards with artwork, text and variable content heights.",
+    title: `Card ${index}`,
+    description:
+      "Mixed aspect ratios simulate real cards with artwork, text and variable content heights.",
     resolution: ratio,
-    fullRow,
     cardStyle: {
-      background: fullRow ? "#2d241a" : "#fffdf8",
-      color: fullRow ? "#fff8ed" : "#2d241a",
+      background: "#fffdf8",
+      color: "#2d241a",
     },
     mediaStyle: {
       background: `linear-gradient(135deg, ${start} 0%, ${end} 100%)`,
@@ -525,17 +486,11 @@ const cards = ref(
 );
 
 const legacyCards = computed(() => {
-  return cards.value.slice(0, 8).map((item, index) => ({
-    ...item,
-    widthFill: index === 2,
-  }));
+  return cards.value.slice(0, 8);
 });
 
 const modernCards = computed(() => {
-  return cards.value.slice(0, 8).map((item, index) => ({
-    ...item,
-    fullRow: index === 2,
-  }));
+  return cards.value.slice(0, 8);
 });
 
 const performanceCards = computed(() => {
@@ -543,7 +498,6 @@ const performanceCards = computed(() => {
     const [start, end] = palette[index % palette.length];
     return {
       id: `perf-${index + 1}`,
-      fullRow: index > 0 && index % 40 === 0,
       mediaStyle: {
         background: `linear-gradient(135deg, ${start} 0%, ${end} 100%)`,
       },
@@ -558,11 +512,8 @@ const shuffleCards = () => {
     .map(({ item }) => item);
 };
 
-const scrollToBanner = () => {
-  const bannerIndex = cards.value.findIndex((item) => item.fullRow);
-  if (bannerIndex >= 0) {
-    gridRef.value?.scrollToIndex(bannerIndex, "center");
-  }
+const scrollToExampleItem = () => {
+  gridRef.value?.scrollToIndex(19, "center");
 };
 
 watch(
@@ -780,11 +731,6 @@ h2 {
   box-shadow: 0 12px 30px rgba(100, 73, 35, 0.12);
 }
 
-.demo-card--banner {
-  display: grid;
-  grid-template-columns: minmax(180px, 30%) 1fr;
-}
-
 .demo-card__media {
   position: relative;
   width: 100%;
@@ -802,21 +748,6 @@ h2 {
   color: white;
   font-size: 12px;
   backdrop-filter: blur(6px);
-}
-
-.demo-card__label {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  max-width: calc(100% - 24px);
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(255, 248, 237, 0.88);
-  color: #2d241a;
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .api-list {
@@ -1072,10 +1003,6 @@ h2 {
 
   .control-panel {
     padding: 16px;
-  }
-
-  .demo-card--banner {
-    grid-template-columns: 1fr;
   }
 
   .inner-scroll {
