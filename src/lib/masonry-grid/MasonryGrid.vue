@@ -26,41 +26,18 @@ import {
   watch,
   type CSSProperties,
 } from "vue";
-
-type AspectRatio = string | number;
-type ItemKey = string | number;
-type ItemLike = Record<string, any>;
-type KeyResolver = string | ((item: ItemLike, index: number) => ItemKey);
-type BooleanResolver = string | ((item: ItemLike, index: number) => boolean);
-type HeightResolver =
-  | string
-  | ((item: ItemLike, index: number) => number | undefined);
-type ScrollTarget = "parent" | "window";
-type ScrollAlign = "start" | "center" | "end";
+import type {
+  AspectRatio,
+  ItemKey,
+  ItemLike,
+  MasonryGridProps,
+  ScrollAlign,
+} from "./types";
 
 interface MasonryPosition {
   style: CSSProperties;
   topValue: number;
   bottomValue: number;
-}
-
-interface MasonryGridProps {
-  data: ItemLike[];
-  columns?: number;
-  gap?: number;
-  rowGap?: number;
-  aspectRatio?: AspectRatio;
-  minAspectRatio?: number;
-  maxAspectRatio?: number;
-  extraHeight?: number;
-  scaleExtraHeight?: boolean;
-  designWidth?: number;
-  itemKey?: KeyResolver;
-  itemHeight?: HeightResolver;
-  fullRow?: BooleanResolver;
-  virtual?: boolean;
-  overscan?: number;
-  scrollTarget?: ScrollTarget;
 }
 
 interface RenderItem {

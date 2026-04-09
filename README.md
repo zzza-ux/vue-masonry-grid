@@ -23,7 +23,9 @@ npm run dev
 
 ## 文件
 
-- `src/components/MasonryGrid.vue`: 独立可演示的组件副本
+- `src/lib/masonry-grid/MasonryGrid.vue`: 组件实现
+- `src/lib/masonry-grid/types.ts`: 对外类型定义
+- `src/lib/masonry-grid/index.ts`: 组件入口
 - `src/components/LegacyWaterfall.vue`: 保留旧接口语义的对照组件
 - `src/App.vue`: 交互演示页 + API/Usage 说明区
 - `src/style.css`: 全局样式

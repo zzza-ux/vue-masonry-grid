@@ -311,7 +311,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import LegacyWaterfall from "./components/LegacyWaterfall.vue";
-import MasonryGrid from "./components/MasonryGrid.vue";
+import MasonryGrid from "./lib/masonry-grid";
 
 type DemoCard = {
   id: string;
