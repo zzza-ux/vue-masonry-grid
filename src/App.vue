@@ -25,6 +25,10 @@
           <strong>{{ virtual ? "on" : "off" }}</strong>
           <span>virtual mode</span>
         </div>
+        <div class="hero-stat">
+          <strong>{{ perfSize }}</strong>
+          <span>perf sample</span>
+        </div>
       </div>
     </section>
 
@@ -76,7 +80,7 @@
               :gap="gap"
               :row-gap="gap"
               item-key="id"
-              :extra-height="68"
+              :extra-height="0"
               :virtual="virtual"
               :scroll-target="windowScroll ? 'window' : 'parent'"
               full-row="fullRow"
@@ -88,10 +92,9 @@
                 >
                   <div class="demo-card__media" :style="item.mediaStyle">
                     <span class="demo-card__badge">#{{ index + 1 }}</span>
-                  </div>
-                  <div class="demo-card__body">
-                    <h3>{{ item.title }}</h3>
-                    <p>{{ item.description }}</p>
+                    <span v-if="item.fullRow" class="demo-card__label">{{
+                      item.title
+                    }}</span>
                   </div>
                 </article>
               </template>
@@ -106,7 +109,7 @@
             :gap="gap"
             :row-gap="gap"
             item-key="id"
-            :extra-height="68"
+            :extra-height="0"
             :virtual="virtual"
             :scroll-target="windowScroll ? 'window' : 'parent'"
             full-row="fullRow"
@@ -118,10 +121,9 @@
               >
                 <div class="demo-card__media" :style="item.mediaStyle">
                   <span class="demo-card__badge">#{{ index + 1 }}</span>
-                </div>
-                <div class="demo-card__body">
-                  <h3>{{ item.title }}</h3>
-                  <p>{{ item.description }}</p>
+                  <span v-if="item.fullRow" class="demo-card__label">{{
+                    item.title
+                  }}</span>
                 </div>
               </article>
             </template>
@@ -214,7 +216,7 @@
               :gap="12"
               :row-gap="12"
               resolution="3/4"
-              :expand="44"
+              :expand="0"
             >
               <template #item="{ item }">
                 <article
@@ -224,10 +226,10 @@
                   ]"
                   :style="item.cardStyle"
                 >
-                  <div class="demo-card__media" :style="item.mediaStyle"></div>
-                  <div class="demo-card__body">
-                    <h3>{{ item.title }}</h3>
-                    <p>{{ item.description }}</p>
+                  <div class="demo-card__media" :style="item.mediaStyle">
+                    <span v-if="item.widthFill" class="demo-card__label">{{
+                      item.title
+                    }}</span>
                   </div>
                 </article>
               </template>
@@ -256,7 +258,7 @@
               :gap="12"
               :row-gap="12"
               aspect-ratio="3/4"
-              :extra-height="44"
+              :extra-height="0"
               item-key="id"
               full-row="fullRow"
             >
@@ -268,10 +270,10 @@
                   ]"
                   :style="item.cardStyle"
                 >
-                  <div class="demo-card__media" :style="item.mediaStyle"></div>
-                  <div class="demo-card__body">
-                    <h3>{{ item.title }}</h3>
-                    <p>{{ item.description }}</p>
+                  <div class="demo-card__media" :style="item.mediaStyle">
+                    <span v-if="item.fullRow" class="demo-card__label">{{
+                      item.title
+                    }}</span>
                   </div>
                 </article>
               </template>
@@ -303,6 +305,71 @@
             <code>fullRow</code> in the new component.
           </p>
         </article>
+      </div>
+    </section>
+
+    <section class="perf-section">
+      <div class="section-heading">
+        <div>
+          <p class="section-kicker">Performance View</p>
+          <h2>Long List Stress Test</h2>
+        </div>
+        <p class="section-copy">
+          Switch sample size to quickly inspect how the grid behaves when the
+          list gets much longer.
+        </p>
+      </div>
+
+      <div class="perf-toolbar">
+        <button
+          v-for="size in perfSizes"
+          :key="size"
+          :class="['perf-chip', { 'perf-chip--active': perfSize === size }]"
+          @click="perfSize = size"
+        >
+          {{ size }} items
+        </button>
+      </div>
+
+      <div class="perf-meta">
+        <article class="perf-meta__item">
+          <strong>{{ perfSize }}</strong>
+          <span>rendered test items</span>
+        </article>
+        <article class="perf-meta__item">
+          <strong>{{ virtual ? "enabled" : "disabled" }}</strong>
+          <span>virtual rendering mode</span>
+        </article>
+        <article class="perf-meta__item">
+          <strong>{{ gap }}px</strong>
+          <span>shared spacing configuration</span>
+        </article>
+      </div>
+
+      <div class="perf-board">
+        <div class="perf-scroll">
+          <MasonryGrid
+            :data="performanceCards"
+            :columns="4"
+            :gap="12"
+            :row-gap="12"
+            aspect-ratio="1"
+            item-key="id"
+            :virtual="virtual"
+            full-row="fullRow"
+          >
+            <template #item="{ item, index }">
+              <article class="perf-tile">
+                <div class="perf-tile__media" :style="item.mediaStyle">
+                  <span class="perf-tile__index">#{{ index + 1 }}</span>
+                  <span v-if="item.fullRow" class="demo-card__label"
+                    >full row</span
+                  >
+                </div>
+              </article>
+            </template>
+          </MasonryGrid>
+        </div>
       </div>
     </section>
   </main>
@@ -347,6 +414,8 @@ const columns = ref(3);
 const gap = ref(16);
 const virtual = ref(true);
 const windowScroll = ref(false);
+const perfSizes = [120, 300, 600, 1000];
+const perfSize = ref(300);
 const gridRef = ref<MasonryGridExpose>();
 
 const apiItems: ApiItem[] = [
@@ -398,6 +467,7 @@ const usageExample = computed(() => {
   :columns="${columns.value}"
   :gap="${gap.value}"
   :row-gap="${gap.value}"
+  :extra-height="0"
   item-key="id"
   :virtual="${virtual.value}"
   scroll-target="${windowScroll.value ? "window" : "parent"}"
@@ -414,7 +484,7 @@ const legacyExample = `<LegacyWaterfall
   :col="2"
   :gap="12"
   resolution="3/4"
-  :expand="44"
+  :expand="0"
 />`;
 
 const modernExample = `<MasonryGrid
@@ -422,7 +492,7 @@ const modernExample = `<MasonryGrid
   :columns="2"
   :gap="12"
   aspect-ratio="3/4"
-  :extra-height="44"
+  :extra-height="0"
   item-key="id"
   full-row="fullRow"
 />`;
@@ -466,6 +536,19 @@ const modernCards = computed(() => {
     ...item,
     fullRow: index === 2,
   }));
+});
+
+const performanceCards = computed(() => {
+  return Array.from({ length: perfSize.value }, (_, index) => {
+    const [start, end] = palette[index % palette.length];
+    return {
+      id: `perf-${index + 1}`,
+      fullRow: index > 0 && index % 40 === 0,
+      mediaStyle: {
+        background: `linear-gradient(135deg, ${start} 0%, ${end} 100%)`,
+      },
+    };
+  });
 });
 
 const shuffleCards = () => {
@@ -720,20 +803,19 @@ h2 {
   backdrop-filter: blur(6px);
 }
 
-.demo-card__body {
-  padding: 18px;
-}
-
-.demo-card__body h3 {
-  margin: 0 0 8px;
-  font-size: 18px;
-}
-
-.demo-card__body p {
-  margin: 0;
-  line-height: 1.55;
-  color: inherit;
-  opacity: 0.82;
+.demo-card__label {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  max-width: calc(100% - 24px);
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 248, 237, 0.88);
+  color: #2d241a;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .api-list {
@@ -868,6 +950,92 @@ h2 {
   color: #6d5b45;
 }
 
+.perf-section {
+  margin-top: 40px;
+}
+
+.perf-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.perf-chip {
+  border: 1px solid rgba(45, 36, 26, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #2d241a;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.perf-chip--active {
+  background: #2d241a;
+  color: #fff8ed;
+}
+
+.perf-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.perf-meta__item {
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 14px 44px rgba(95, 69, 31, 0.08);
+}
+
+.perf-meta__item strong {
+  display: block;
+  font-size: 26px;
+}
+
+.perf-meta__item span {
+  color: #6d5b45;
+}
+
+.perf-board {
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 14px 44px rgba(95, 69, 31, 0.08);
+}
+
+.perf-scroll {
+  height: 72vh;
+  overflow: auto;
+  padding: 10px;
+  border-radius: 22px;
+  background: #fffaf2;
+}
+
+.perf-tile {
+  overflow: hidden;
+  border-radius: 18px;
+  box-shadow: 0 8px 22px rgba(100, 73, 35, 0.1);
+}
+
+.perf-tile__media {
+  position: relative;
+  min-height: 84px;
+}
+
+.perf-tile__index {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+  color: white;
+  font-size: 11px;
+}
+
 @media (max-width: 980px) {
   .content-grid {
     grid-template-columns: 1fr;
@@ -879,7 +1047,8 @@ h2 {
   }
 
   .compare-grid,
-  .delta-list {
+  .delta-list,
+  .perf-meta {
     grid-template-columns: 1fr;
   }
 }
