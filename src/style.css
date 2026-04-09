@@ -1,0 +1,27 @@
+:root {
+  color-scheme: light;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  background: radial-gradient(
+      circle at top,
+      rgba(255, 244, 222, 0.9),
+      transparent 35%
+    ),
+    linear-gradient(180deg, #fffaf0 0%, #f2efe6 100%);
+  color: #2d241a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
