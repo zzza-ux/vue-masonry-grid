@@ -209,8 +209,7 @@ const getScrollParent = (el: HTMLElement) => {
   while (parent) {
     const style = window.getComputedStyle(parent);
     const overflowY = style.overflowY;
-    const canScroll = /(auto|scroll|overlay)/.test(overflowY);
-    if (canScroll && parent.scrollHeight > parent.clientHeight) {
+    if (/(auto|scroll|overlay)/.test(overflowY)) {
       return parent;
     }
     parent = parent.parentElement;
