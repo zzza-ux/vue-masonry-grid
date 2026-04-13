@@ -300,22 +300,34 @@
         >
           {{ size }} items
         </button>
+        <button
+          :class="['perf-chip', { 'perf-chip--active': perfVirtual }]"
+          @click="perfVirtual = !perfVirtual"
+        >
+          Virtual {{ perfVirtual ? "ON" : "OFF" }}
+        </button>
       </div>
 
       <div class="perf-meta">
         <article class="perf-meta__item">
           <strong>{{ perfSize }}</strong>
-          <span>rendered test items</span>
+          <span>total dataset items</span>
         </article>
         <article class="perf-meta__item">
-          <strong>{{ virtual ? "enabled" : "disabled" }}</strong>
-          <span>virtual rendering mode</span>
+          <strong>{{ perfRenderedCount }}</strong>
+          <span>currently rendered DOM items</span>
         </article>
         <article class="perf-meta__item">
-          <strong>{{ gap }}px</strong>
-          <span>shared spacing configuration</span>
+          <strong>{{ perfSavedCount }}</strong>
+          <span>DOM nodes avoided by virtualization</span>
         </article>
       </div>
+
+      <p class="perf-note">
+        Scroll this board and switch virtual rendering on and off. With
+        virtualization enabled, the grid should keep the mounted DOM count far
+        below the total dataset size.
+      </p>
 
       <div class="perf-board">
         <div class="perf-scroll">
@@ -326,7 +338,8 @@
             :row-gap="12"
             aspect-ratio="1"
             item-key="id"
-            :virtual="virtual"
+            :virtual="perfVirtual"
+            @visible-change="handlePerfVisibleChange"
           >
             <template #item="{ item, index }">
               <article class="perf-tile">
@@ -382,6 +395,8 @@ const virtual = ref(true);
 const windowScroll = ref(false);
 const perfSizes = [120, 300, 600, 1000];
 const perfSize = ref(300);
+const perfVirtual = ref(true);
+const perfRenderedCount = ref(0);
 const gridRef = ref<MasonryGridExpose>();
 
 const apiItems: ApiItem[] = [
@@ -505,6 +520,10 @@ const performanceCards = computed(() => {
   });
 });
 
+const perfSavedCount = computed(() => {
+  return Math.max(0, perfSize.value - perfRenderedCount.value);
+});
+
 const shuffleCards = () => {
   cards.value = [...cards.value]
     .map((item) => ({ sort: Math.random(), item }))
@@ -514,6 +533,14 @@ const shuffleCards = () => {
 
 const scrollToExampleItem = () => {
   gridRef.value?.scrollToIndex(19, "center");
+};
+
+const handlePerfVisibleChange = (payload: {
+  renderedCount: number;
+  totalCount: number;
+  virtual: boolean;
+}) => {
+  perfRenderedCount.value = payload.renderedCount;
 };
 
 watch(
@@ -928,6 +955,12 @@ h2 {
 
 .perf-meta__item span {
   color: #6d5b45;
+}
+
+.perf-note {
+  margin: 16px 0 0;
+  color: #6d5b45;
+  line-height: 1.6;
 }
 
 .perf-board {

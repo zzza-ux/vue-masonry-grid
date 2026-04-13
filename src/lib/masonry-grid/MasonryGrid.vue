@@ -42,6 +42,16 @@ interface RenderItem {
   style: CSSProperties;
 }
 
+const emit = defineEmits<{
+  visibleChange: [
+    {
+      renderedCount: number;
+      totalCount: number;
+      virtual: boolean;
+    }
+  ];
+}>();
+
 const props = withDefaults(defineProps<MasonryGridProps>(), {
   columns: 2,
   gap: 10,
@@ -235,6 +245,18 @@ const renderedItems = computed<RenderItem[]>(() => {
 
   return list;
 });
+
+watch(
+  renderedItems,
+  (items) => {
+    emit("visibleChange", {
+      renderedCount: items.length,
+      totalCount: props.data.length,
+      virtual: props.virtual,
+    });
+  },
+  { immediate: true }
+);
 
 const reflow = async () => {
   await nextTick();
