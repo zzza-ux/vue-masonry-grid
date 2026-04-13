@@ -82,7 +82,6 @@ let scrollContainer: HTMLElement | Window | null = null;
 let rootObserver: ResizeObserver | null = null;
 let scrollObserver: ResizeObserver | null = null;
 let reflowRaf = 0;
-let nextPoolSlotId = 0;
 
 const pooledRenderedItems = ref<RenderItem[]>([]);
 const poolSize = ref(0);
@@ -101,9 +100,15 @@ const resolveItemKey = (item: ItemLike, index: number): ItemKey => {
   return key ?? index;
 };
 
+const resetReusePool = () => {
+  poolSize.value = 0;
+  pooledRenderedItems.value = [];
+};
+
 const computeLayout = () => {
   const el = rootRef.value;
   if (!el) return;
+  resetReusePool();
   const columns = Math.max(1, props.columns);
   containerWidth.value = el.offsetWidth;
   if (!containerWidth.value) return;
@@ -259,9 +264,7 @@ watch(
   rawRenderedItems,
   (items) => {
     if (!props.virtual || !props.reuse) {
-      poolSize.value = items.length;
       pooledRenderedItems.value = items;
-      nextPoolSlotId = items.length;
       return;
     }
 
@@ -295,7 +298,7 @@ watch(
     items.forEach((item) => {
       if (nextItems.some((existing) => existing.index === item.index)) return;
 
-      let slotId = -1;
+      let slotId;
       for (let index = 0; index < poolSize.value; index++) {
         if (!usedSlotIds.has(index)) {
           slotId = index;
@@ -303,10 +306,7 @@ watch(
         }
       }
 
-      if (slotId < 0) {
-        slotId = nextPoolSlotId++;
-        poolSize.value = Math.max(poolSize.value, slotId + 1);
-      }
+      if (slotId === undefined) return;
 
       nextItems.push({
         ...item,
@@ -369,6 +369,7 @@ const reflow = async () => {
 const reset = async () => {
   positions.splice(0, positions.length);
   containerHeight.value = 0;
+  resetReusePool();
   await reflow();
 };
 
