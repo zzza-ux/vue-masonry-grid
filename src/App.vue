@@ -326,6 +326,20 @@
         DOM 数会明显低于总数据量；再开启复用池后，挂载的 DOM 数会更稳定。
       </p>
 
+      <div class="perf-mode-grid">
+        <article
+          v-for="mode in perfModes"
+          :key="mode.key"
+          :class="['perf-mode-card', { 'perf-mode-card--active': mode.active }]"
+        >
+          <div class="perf-mode-card__head">
+            <strong>{{ mode.title }}</strong>
+            <span>{{ mode.tag }}</span>
+          </div>
+          <p>{{ mode.desc }}</p>
+        </article>
+      </div>
+
       <div class="perf-board">
         <div class="perf-scroll">
           <MasonryGrid
@@ -516,6 +530,32 @@ const performanceCards = computed(() => {
 
 const perfSavedCount = computed(() => {
   return Math.max(0, perfSize.value - perfMountedCount.value);
+});
+
+const perfModes = computed(() => {
+  return [
+    {
+      key: "plain",
+      title: "关闭虚拟滚动",
+      tag: "模式 1",
+      active: !perfVirtual.value,
+      desc: "会直接渲染整份数据。最直观，但长列表下 DOM 数最高，性能压力也最大。",
+    },
+    {
+      key: "virtual",
+      title: "仅开虚拟滚动",
+      tag: "模式 2",
+      active: perfVirtual.value && !perfReuse.value,
+      desc: "只渲染可视区域附近的内容。DOM 数显著下降，但滚动时挂载数量会有波动。",
+    },
+    {
+      key: "virtual-reuse",
+      title: "虚拟滚动 + 复用池",
+      tag: "模式 3",
+      active: perfVirtual.value && perfReuse.value,
+      desc: "在可视区渲染基础上尽量复用已有槽位。挂载 DOM 数更稳定，适合展示更强的优化思路。",
+    },
+  ];
 });
 
 const shuffleCards = () => {
@@ -960,6 +1000,48 @@ h2 {
   line-height: 1.6;
 }
 
+.perf-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.perf-mode-card {
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 14px 44px rgba(95, 69, 31, 0.08);
+  border: 1px solid transparent;
+}
+
+.perf-mode-card--active {
+  border-color: rgba(45, 36, 26, 0.18);
+  box-shadow: 0 18px 48px rgba(95, 69, 31, 0.14);
+}
+
+.perf-mode-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.perf-mode-card__head span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f5ead8;
+  color: #6c4b1e;
+  font-size: 12px;
+}
+
+.perf-mode-card p {
+  margin: 0;
+  line-height: 1.6;
+  color: #6d5b45;
+}
+
 .perf-board {
   margin-top: 18px;
   padding: 14px;
@@ -1012,7 +1094,8 @@ h2 {
 
   .compare-grid,
   .delta-list,
-  .perf-meta {
+  .perf-meta,
+  .perf-mode-grid {
     grid-template-columns: 1fr;
   }
 }
