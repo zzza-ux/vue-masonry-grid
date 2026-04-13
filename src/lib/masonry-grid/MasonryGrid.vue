@@ -348,11 +348,9 @@ const renderedItems = computed<RenderItem[]>(() => {
 
 watch(
   renderedItems,
-  async (items) => {
-    await nextTick();
+  (items) => {
     const mountedCount =
-      rootRef.value?.querySelectorAll(":scope > .masonry-grid__item").length ??
-      items.length;
+      props.virtual && props.reuse ? poolSize.value : items.length;
 
     emit("visibleChange", {
       renderedCount: rawRenderedItems.value.length,
@@ -362,7 +360,7 @@ watch(
       reuse: props.reuse,
     });
   },
-  { immediate: true, flush: "post" }
+  { immediate: true }
 );
 
 const reflow = async () => {
