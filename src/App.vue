@@ -1,58 +1,57 @@
 <template>
   <main class="page-shell">
     <section class="hero">
-      <p class="eyebrow">Component Demo</p>
+      <p class="eyebrow">组件演示</p>
       <div class="hero-row">
         <div>
-          <h1>MasonryGrid playground</h1>
+          <h1>MasonryGrid 组件演示</h1>
           <p class="hero-copy">
-            A small component site for exploring layout behavior, virtual
-            rendering, and the public API shape of the new MasonryGrid.
+            一个用于展示布局行为、虚拟滚动效果和组件接口设计的小型演示站点。
           </p>
         </div>
-        <button class="primary-btn" @click="shuffleCards">Shuffle Cards</button>
+        <button class="primary-btn" @click="shuffleCards">打乱卡片</button>
       </div>
       <div class="hero-stats">
         <div class="hero-stat">
           <strong>{{ cards.length }}</strong>
-          <span>demo items</span>
+          <span>演示卡片数</span>
         </div>
         <div class="hero-stat">
           <strong>{{ columns }}</strong>
-          <span>columns</span>
+          <span>列数</span>
         </div>
         <div class="hero-stat">
-          <strong>{{ virtual ? "on" : "off" }}</strong>
-          <span>virtual mode</span>
+          <strong>{{ virtual ? "开启" : "关闭" }}</strong>
+          <span>主示例虚拟滚动</span>
         </div>
         <div class="hero-stat">
           <strong>{{ perfSize }}</strong>
-          <span>perf sample</span>
+          <span>性能测试样本量</span>
         </div>
       </div>
     </section>
 
     <section class="control-panel">
       <label>
-        <span>Columns</span>
+        <span>列数</span>
         <input v-model.number="columns" type="range" min="2" max="5" />
         <strong>{{ columns }}</strong>
       </label>
       <label>
-        <span>Gap</span>
+        <span>间距</span>
         <input v-model.number="gap" type="range" min="8" max="24" />
         <strong>{{ gap }}px</strong>
       </label>
       <label class="toggle">
         <input v-model="virtual" type="checkbox" />
-        <span>Virtual rendering</span>
+        <span>开启虚拟滚动</span>
       </label>
       <label class="toggle">
         <input v-model="windowScroll" type="checkbox" />
-        <span>Use window scroll</span>
+        <span>使用页面滚动</span>
       </label>
       <button class="ghost-btn" @click="scrollToExampleItem">
-        Scroll To Item 20
+        滚动到第 20 项
       </button>
     </section>
 
@@ -60,12 +59,11 @@
       <div class="demo-column">
         <div class="section-heading">
           <div>
-            <p class="section-kicker">Live Preview</p>
-            <h2>Interactive Example</h2>
+            <p class="section-kicker">实时预览</p>
+            <h2>交互示例</h2>
           </div>
           <p class="section-copy">
-            Toggle between parent-container and window scrolling to verify the
-            component behavior in both integration modes.
+            可以在“容器滚动”和“页面滚动”之间切换，观察组件在两种接入方式下的表现。
           </p>
         </div>
 
@@ -121,8 +119,8 @@
         <section class="docs-card">
           <div class="section-heading section-heading--compact">
             <div>
-              <p class="section-kicker">Usage</p>
-              <h2>Starter Snippet</h2>
+              <p class="section-kicker">用法</p>
+              <h2>基础示例代码</h2>
             </div>
           </div>
           <pre class="code-block"><code>{{ usageExample }}</code></pre>
@@ -132,7 +130,7 @@
           <div class="section-heading section-heading--compact">
             <div>
               <p class="section-kicker">API</p>
-              <h2>Important Props</h2>
+              <h2>常用参数</h2>
             </div>
           </div>
           <div class="api-list">
@@ -149,20 +147,14 @@
         <section class="docs-card">
           <div class="section-heading section-heading--compact">
             <div>
-              <p class="section-kicker">Expose</p>
-              <h2>Methods</h2>
+              <p class="section-kicker">实例方法</p>
+              <h2>方法说明</h2>
             </div>
           </div>
           <ul class="simple-list">
-            <li>
-              <code>reflow()</code> reruns container measurement and layout.
-            </li>
-            <li>
-              <code>reset()</code> clears the cached layout and recalculates.
-            </li>
-            <li>
-              <code>scrollToIndex(index, align)</code> jumps to a target item.
-            </li>
+            <li><code>reflow()</code>：重新测量容器并计算布局。</li>
+            <li><code>reset()</code>：清空缓存布局并重新计算。</li>
+            <li><code>scrollToIndex(index, align)</code>：滚动到指定项。</li>
           </ul>
         </section>
       </aside>
@@ -171,12 +163,11 @@
     <section class="compare-section">
       <div class="section-heading">
         <div>
-          <p class="section-kicker">Migration View</p>
-          <h2>Legacy Waterfall vs MasonryGrid</h2>
+          <p class="section-kicker">迁移对比</p>
+          <h2>旧 Waterfall 与 MasonryGrid</h2>
         </div>
         <p class="section-copy">
-          Both blocks below render the same subset. The left side keeps the old
-          prop language, and the right side shows the more explicit API.
+          下面两个区域渲染的是同一组数据。左边保留旧接口风格，右边展示语义更清晰的新接口。
         </p>
       </div>
 
@@ -186,11 +177,11 @@
             <div>
               <h3>LegacyWaterfall</h3>
               <p>
-                Old-style props: <code>col</code>, <code>resolution</code>,
-                <code>expand</code>.
+                旧版参数：<code>col</code>、<code>resolution</code>、
+                <code>expand</code>。
               </p>
             </div>
-            <span class="compare-badge">legacy</span>
+            <span class="compare-badge">旧版</span>
           </header>
           <pre
             class="code-block code-block--small"
@@ -221,11 +212,11 @@
             <div>
               <h3>MasonryGrid</h3>
               <p>
-                New-style props: <code>columns</code>, <code>aspectRatio</code>,
-                <code>extraHeight</code>.
+                新版参数：<code>columns</code>、<code>aspectRatio</code>、
+                <code>extraHeight</code>。
               </p>
             </div>
-            <span class="compare-badge compare-badge--new">new</span>
+            <span class="compare-badge compare-badge--new">新版</span>
           </header>
           <pre
             class="code-block code-block--small"
@@ -255,25 +246,23 @@
 
       <div class="delta-list">
         <article class="delta-item">
-          <strong>Key strategy</strong>
+          <strong>Key 策略</strong>
           <p>
-            Legacy demos tend to rely on <code>item.id</code>; MasonryGrid makes
-            that strategy explicit with <code>itemKey</code>.
+            旧写法往往默认依赖 <code>item.id</code>；MasonryGrid 则通过
+            <code>itemKey</code> 把策略显式暴露出来。
           </p>
         </article>
         <article class="delta-item">
-          <strong>Semantic props</strong>
+          <strong>语义更清晰</strong>
           <p>
             <code>columns</code>, <code>aspectRatio</code> and
-            <code>extraHeight</code> read more like a public API than internal
-            layout math.
+            <code>extraHeight</code> 更像对外能力描述，而不是内部布局计算细节。
           </p>
         </article>
         <article class="delta-item">
-          <strong>Cleaner demos</strong>
+          <strong>示例更纯粹</strong>
           <p>
-            This page now keeps uneven cards as pure masonry items, so the
-            layout behavior is easier to inspect.
+            现在这个页面里的不等高卡片都保持为纯瀑布流项，更方便观察布局行为本身。
           </p>
         </article>
       </div>
@@ -282,12 +271,11 @@
     <section class="perf-section">
       <div class="section-heading">
         <div>
-          <p class="section-kicker">Performance View</p>
-          <h2>Long List Stress Test</h2>
+          <p class="section-kicker">性能视图</p>
+          <h2>长列表压力测试</h2>
         </div>
         <p class="section-copy">
-          Switch sample size to quickly inspect how the grid behaves when the
-          list gets much longer.
+          可以切换不同样本量，快速观察数据规模变大后组件的表现。
         </p>
       </div>
 
@@ -298,35 +286,34 @@
           :class="['perf-chip', { 'perf-chip--active': perfSize === size }]"
           @click="perfSize = size"
         >
-          {{ size }} items
+          {{ size }} 项
         </button>
         <button
           :class="['perf-chip', { 'perf-chip--active': perfVirtual }]"
           @click="perfVirtual = !perfVirtual"
         >
-          Virtual {{ perfVirtual ? "ON" : "OFF" }}
+          虚拟滚动 {{ perfVirtual ? "开" : "关" }}
         </button>
       </div>
 
       <div class="perf-meta">
         <article class="perf-meta__item">
           <strong>{{ perfSize }}</strong>
-          <span>total dataset items</span>
+          <span>总数据量</span>
         </article>
         <article class="perf-meta__item">
           <strong>{{ perfRenderedCount }}</strong>
-          <span>currently rendered DOM items</span>
+          <span>当前真实渲染的 DOM 数</span>
         </article>
         <article class="perf-meta__item">
           <strong>{{ perfSavedCount }}</strong>
-          <span>DOM nodes avoided by virtualization</span>
+          <span>虚拟滚动节省的 DOM 数</span>
         </article>
       </div>
 
       <p class="perf-note">
-        Scroll this board and switch virtual rendering on and off. With
-        virtualization enabled, the grid should keep the mounted DOM count far
-        below the total dataset size.
+        在这个区域里滚动，并切换虚拟滚动开关。开启后，页面实际挂载的 DOM
+        数会明显低于总数据量，更容易看出虚拟滚动的价值。
       </p>
 
       <div class="perf-board">
@@ -403,42 +390,37 @@ const apiItems: ApiItem[] = [
   {
     name: "data",
     type: "any[]",
-    desc: "The source list used for layout and slot rendering.",
+    desc: "组件用于布局和插槽渲染的数据源。",
   },
   {
     name: "columns",
     type: "number",
-    desc: "Controls how many columns participate in the masonry layout.",
+    desc: "控制瀑布流参与布局的列数。",
   },
   {
     name: "gap / rowGap",
     type: "number",
-    desc: "Horizontal and vertical spacing between rendered items.",
+    desc: "控制卡片之间的横向和纵向间距。",
   },
   {
     name: "aspectRatio",
     type: "string | number",
-    desc: "Global ratio fallback. Items can still override it with their own fields.",
+    desc: "全局宽高比兜底，单项仍然可以通过自己的字段覆盖。",
   },
   {
     name: "itemKey",
     type: "string | function",
-    desc: "Stable key resolver for safer reuse in real list updates.",
-  },
-  {
-    name: "fullRow",
-    type: "string | function",
-    desc: "Marks banner-like items that should span the whole row.",
+    desc: "稳定的 key 解析策略，适合真实列表更新场景。",
   },
   {
     name: "virtual / overscan",
     type: "boolean / number",
-    desc: "Enables visible-range rendering and configures the buffer area.",
+    desc: "开启可视区渲染，并配置上下缓冲区域。",
   },
   {
     name: "scrollTarget",
     type: "'parent' | 'window'",
-    desc: "Switches between inner-container scrolling and full-page scrolling.",
+    desc: "控制组件监听容器滚动还是页面滚动。",
   },
 ];
 
@@ -482,9 +464,8 @@ const createCard = (index: number): DemoCard => {
 
   return {
     id: `card-${index}`,
-    title: `Card ${index}`,
-    description:
-      "Mixed aspect ratios simulate real cards with artwork, text and variable content heights.",
+    title: `卡片 ${index}`,
+    description: "使用不同宽高比来模拟真实内容场景。",
     resolution: ratio,
     cardStyle: {
       background: "#fffdf8",
