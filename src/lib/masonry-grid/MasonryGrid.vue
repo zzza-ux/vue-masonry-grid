@@ -348,16 +348,21 @@ const renderedItems = computed<RenderItem[]>(() => {
 
 watch(
   renderedItems,
-  (items) => {
+  async (items) => {
+    await nextTick();
+    const mountedCount =
+      rootRef.value?.querySelectorAll(":scope > .masonry-grid__item").length ??
+      items.length;
+
     emit("visibleChange", {
       renderedCount: rawRenderedItems.value.length,
-      mountedCount: items.length,
+      mountedCount,
       totalCount: props.data.length,
       virtual: props.virtual,
       reuse: props.reuse,
     });
   },
-  { immediate: true }
+  { immediate: true, flush: "post" }
 );
 
 const reflow = async () => {

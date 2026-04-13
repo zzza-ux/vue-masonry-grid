@@ -313,17 +313,17 @@
         </article>
         <article class="perf-meta__item">
           <strong>{{ perfMountedCount }}</strong>
-          <span>当前挂载的 DOM 数</span>
+          <span>当前挂载的卡片容器数</span>
         </article>
         <article class="perf-meta__item">
           <strong>{{ perfSavedCount }}</strong>
-          <span>虚拟滚动节省的 DOM 数</span>
+          <span>节省的卡片容器数</span>
         </article>
       </div>
 
       <p class="perf-note">
         在这个区域里滚动，并切换虚拟滚动与复用池开关。开启虚拟滚动后， 挂载的
-        DOM 数会明显低于总数据量；再开启复用池后，挂载的 DOM 数会更稳定。
+        卡片容器数会明显低于总数据量；再开启复用池后，这个数量会更稳定。
       </p>
 
       <div class="perf-mode-grid">
