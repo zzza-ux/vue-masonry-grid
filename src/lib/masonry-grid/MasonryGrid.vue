@@ -26,13 +26,8 @@ import {
   watch,
   type CSSProperties,
 } from "vue";
-import type {
-  AspectRatio,
-  ItemKey,
-  ItemLike,
-  MasonryGridProps,
-  ScrollAlign,
-} from "./types";
+import type { ItemKey, ItemLike, MasonryGridProps, ScrollAlign } from "./types";
+import { computeMasonryLayout } from "./layout.js";
 
 interface MasonryPosition {
   style: CSSProperties;
@@ -81,66 +76,10 @@ const scaledExtraHeight = computed(() => {
   return (props.extraHeight / props.designWidth) * containerWidth.value;
 });
 
-const findColumnIndex = (mode: "min" | "max") => {
-  if (colHeights.length < 2) return 0;
-  let selectedIndex = 0;
-  let selectedValue = colHeights[0];
-  for (let index = 1; index < colHeights.length; index++) {
-    const current = colHeights[index];
-    const shouldReplace =
-      mode === "min" ? current < selectedValue : current > selectedValue;
-    if (shouldReplace) {
-      selectedValue = current;
-      selectedIndex = index;
-    }
-  }
-  return selectedIndex;
-};
-
-const normalizeAspectRatio = (value?: AspectRatio) => {
-  if (!value) return 1.55;
-  if (typeof value === "number") return value > 0 ? value : 1.55;
-
-  let parts = value.split("*").map((part) => parseFloat(part) || 0);
-  if (parts.length < 2) {
-    parts = value.split("/").map((part) => parseFloat(part) || 0);
-  }
-  if (parts.length < 2 || !parts[0] || !parts[1]) return 1.55;
-
-  let ratio = parts[0] / parts[1];
-  if (props.minAspectRatio) ratio = Math.max(props.minAspectRatio, ratio);
-  if (props.maxAspectRatio) ratio = Math.min(props.maxAspectRatio, ratio);
-  return ratio;
-};
-
 const resolveItemKey = (item: ItemLike, index: number): ItemKey => {
   if (typeof props.itemKey === "function") return props.itemKey(item, index);
   const key = item?.[props.itemKey];
   return key ?? index;
-};
-
-const resolveFullRow = (item: ItemLike, index: number) => {
-  if (typeof props.fullRow === "function") return props.fullRow(item, index);
-  if (typeof props.fullRow === "string") return Boolean(item?.[props.fullRow]);
-  return Boolean(item?.fullRow ?? item?.widthFill);
-};
-
-const resolveItemHeight = (item: ItemLike, index: number, width: number) => {
-  if (typeof props.itemHeight === "function") {
-    const height = props.itemHeight(item, index);
-    if (typeof height === "number" && Number.isFinite(height)) return height;
-  } else if (typeof props.itemHeight === "string") {
-    const height = item?.[props.itemHeight];
-    if (typeof height === "number" && Number.isFinite(height)) return height;
-  }
-
-  const directHeight = item?.height ?? item?._height;
-  if (typeof directHeight === "number" && Number.isFinite(directHeight))
-    return directHeight;
-
-  const rawRatio = props.aspectRatio ?? item?.aspectRatio ?? item?.resolution;
-  const ratio = normalizeAspectRatio(rawRatio);
-  return width / ratio + scaledExtraHeight.value;
 };
 
 const computeLayout = () => {
@@ -150,42 +89,35 @@ const computeLayout = () => {
   containerWidth.value = el.offsetWidth;
   if (!containerWidth.value) return;
 
-  const baseItemWidth =
-    (containerWidth.value - (columns - 1) * props.gap) / columns;
-  colHeights = Array.from({ length: columns }, () => 0);
+  const layout = computeMasonryLayout({
+    items: props.data,
+    containerWidth: containerWidth.value,
+    columns,
+    gap: props.gap,
+    rowGap: resolvedRowGap.value,
+    aspectRatio: props.aspectRatio,
+    minAspectRatio: props.minAspectRatio,
+    maxAspectRatio: props.maxAspectRatio,
+    extraHeight: scaledExtraHeight.value,
+    itemHeight: props.itemHeight,
+    fullRow: props.fullRow,
+  });
+
   positions.splice(0, positions.length);
-
-  props.data.forEach((item, index) => {
-    const isFullRow = resolveFullRow(item, index);
-    const width = isFullRow ? containerWidth.value : baseItemWidth;
-    const height = resolveItemHeight(item, index, width);
-    const minColumnIndex = findColumnIndex("min");
-    const maxColumnIndex = findColumnIndex("max");
-    const top = isFullRow
-      ? colHeights[maxColumnIndex]
-      : colHeights[minColumnIndex];
-    const left = isFullRow ? 0 : minColumnIndex * (baseItemWidth + props.gap);
-    const nextHeight = top + height + resolvedRowGap.value;
-
-    if (isFullRow) {
-      colHeights = colHeights.map(() => nextHeight);
-    } else {
-      colHeights[minColumnIndex] = nextHeight;
-    }
-
+  layout.positions.forEach((position, index) => {
     positions[index] = {
       style: {
-        left: left + "px",
-        top: top + "px",
-        width: width + "px",
-        height: height + "px",
+        left: position.left + "px",
+        top: position.top + "px",
+        width: position.width + "px",
+        height: position.height + "px",
       },
-      topValue: top,
-      bottomValue: top + height,
+      topValue: position.topValue,
+      bottomValue: position.bottomValue,
     };
   });
 
-  containerHeight.value = Math.max(0, ...colHeights);
+  containerHeight.value = layout.containerHeight;
   updateContainerMetrics();
 };
 
