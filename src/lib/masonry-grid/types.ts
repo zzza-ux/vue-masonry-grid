@@ -26,6 +26,7 @@ export interface MasonryGridProps {
   itemHeight?: HeightResolver;
   fullRow?: BooleanResolver;
   virtual?: boolean;
+  reuse?: boolean;
   overscan?: number;
   scrollTarget?: ScrollTarget;
 }

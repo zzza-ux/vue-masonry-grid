@@ -40,14 +40,18 @@ interface RenderItem {
   index: number;
   data: ItemLike;
   style: CSSProperties;
+  hidden?: boolean;
+  poolSlotId?: number;
 }
 
 const emit = defineEmits<{
   visibleChange: [
     {
       renderedCount: number;
+      mountedCount: number;
       totalCount: number;
       virtual: boolean;
+      reuse: boolean;
     }
   ];
 }>();
@@ -60,6 +64,7 @@ const props = withDefaults(defineProps<MasonryGridProps>(), {
   designWidth: 375,
   itemKey: "id",
   virtual: false,
+  reuse: false,
   overscan: 200,
   scrollTarget: "parent",
 });
@@ -77,6 +82,10 @@ let scrollContainer: HTMLElement | Window | null = null;
 let rootObserver: ResizeObserver | null = null;
 let scrollObserver: ResizeObserver | null = null;
 let reflowRaf = 0;
+let nextPoolSlotId = 0;
+
+const pooledRenderedItems = ref<RenderItem[]>([]);
+const poolSize = ref(0);
 
 const isBrowser = typeof window !== "undefined";
 const resolvedRowGap = computed(() => props.rowGap ?? props.gap);
@@ -221,7 +230,7 @@ const scheduleReflow = () => {
   });
 };
 
-const renderedItems = computed<RenderItem[]>(() => {
+const rawRenderedItems = computed<RenderItem[]>(() => {
   const list: RenderItem[] = [];
   const minVisibleTop = scrollTop.value - props.overscan;
   const maxVisibleBottom =
@@ -247,12 +256,105 @@ const renderedItems = computed<RenderItem[]>(() => {
 });
 
 watch(
+  rawRenderedItems,
+  (items) => {
+    if (!props.virtual || !props.reuse) {
+      poolSize.value = items.length;
+      pooledRenderedItems.value = items;
+      nextPoolSlotId = items.length;
+      return;
+    }
+
+    poolSize.value = Math.max(poolSize.value, items.length);
+
+    const previousItems = pooledRenderedItems.value;
+    const previousByIndex = new Map(
+      previousItems
+        .filter((item) => !item.hidden)
+        .map((item) => [item.index, item] as const)
+    );
+    const previousBySlot = new Map(
+      previousItems.map((item) => [item.poolSlotId ?? -1, item] as const)
+    );
+
+    const nextItems: RenderItem[] = [];
+    const usedSlotIds = new Set<number>();
+
+    items.forEach((item) => {
+      const matched = previousByIndex.get(item.index);
+      if (matched?.poolSlotId === undefined) return;
+
+      nextItems.push({
+        ...item,
+        key: `reuse-${matched.poolSlotId}`,
+        poolSlotId: matched.poolSlotId,
+      });
+      usedSlotIds.add(matched.poolSlotId);
+    });
+
+    items.forEach((item) => {
+      if (nextItems.some((existing) => existing.index === item.index)) return;
+
+      let slotId = -1;
+      for (let index = 0; index < poolSize.value; index++) {
+        if (!usedSlotIds.has(index)) {
+          slotId = index;
+          break;
+        }
+      }
+
+      if (slotId < 0) {
+        slotId = nextPoolSlotId++;
+        poolSize.value = Math.max(poolSize.value, slotId + 1);
+      }
+
+      nextItems.push({
+        ...item,
+        key: `reuse-${slotId}`,
+        poolSlotId: slotId,
+      });
+      usedSlotIds.add(slotId);
+    });
+
+    for (let slotId = 0; slotId < poolSize.value; slotId++) {
+      if (usedSlotIds.has(slotId)) continue;
+
+      const previous = previousBySlot.get(slotId);
+      if (!previous) continue;
+
+      nextItems.push({
+        ...previous,
+        key: `reuse-${slotId}`,
+        poolSlotId: slotId,
+        hidden: true,
+        style: {
+          ...previous.style,
+          display: "none",
+        },
+      });
+    }
+
+    pooledRenderedItems.value = nextItems.sort((a, b) => {
+      return (a.poolSlotId ?? 0) - (b.poolSlotId ?? 0);
+    });
+  },
+  { immediate: true }
+);
+
+const renderedItems = computed<RenderItem[]>(() => {
+  if (!props.virtual || !props.reuse) return rawRenderedItems.value;
+  return pooledRenderedItems.value;
+});
+
+watch(
   renderedItems,
   (items) => {
     emit("visibleChange", {
-      renderedCount: items.length,
+      renderedCount: rawRenderedItems.value.length,
+      mountedCount: items.length,
       totalCount: props.data.length,
       virtual: props.virtual,
+      reuse: props.reuse,
     });
   },
   { immediate: true }
@@ -312,6 +414,7 @@ watch(
     props.scaleExtraHeight,
     props.designWidth,
     props.virtual,
+    props.reuse,
     props.overscan,
     props.scrollTarget,
     props.itemKey,

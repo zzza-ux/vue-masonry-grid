@@ -294,6 +294,12 @@
         >
           虚拟滚动 {{ perfVirtual ? "开" : "关" }}
         </button>
+        <button
+          :class="['perf-chip', { 'perf-chip--active': perfReuse }]"
+          @click="perfReuse = !perfReuse"
+        >
+          复用池 {{ perfReuse ? "开" : "关" }}
+        </button>
       </div>
 
       <div class="perf-meta">
@@ -303,7 +309,11 @@
         </article>
         <article class="perf-meta__item">
           <strong>{{ perfRenderedCount }}</strong>
-          <span>当前真实渲染的 DOM 数</span>
+          <span>当前可见数据项数</span>
+        </article>
+        <article class="perf-meta__item">
+          <strong>{{ perfMountedCount }}</strong>
+          <span>当前挂载的 DOM 数</span>
         </article>
         <article class="perf-meta__item">
           <strong>{{ perfSavedCount }}</strong>
@@ -312,8 +322,8 @@
       </div>
 
       <p class="perf-note">
-        在这个区域里滚动，并切换虚拟滚动开关。开启后，页面实际挂载的 DOM
-        数会明显低于总数据量，更容易看出虚拟滚动的价值。
+        在这个区域里滚动，并切换虚拟滚动与复用池开关。开启虚拟滚动后， 挂载的
+        DOM 数会明显低于总数据量；再开启复用池后，挂载的 DOM 数会更稳定。
       </p>
 
       <div class="perf-board">
@@ -326,6 +336,7 @@
             aspect-ratio="1"
             item-key="id"
             :virtual="perfVirtual"
+            :reuse="perfReuse"
             @visible-change="handlePerfVisibleChange"
           >
             <template #item="{ item, index }">
@@ -383,7 +394,9 @@ const windowScroll = ref(false);
 const perfSizes = [120, 300, 600, 1000];
 const perfSize = ref(300);
 const perfVirtual = ref(true);
+const perfReuse = ref(false);
 const perfRenderedCount = ref(0);
+const perfMountedCount = ref(0);
 const gridRef = ref<MasonryGridExpose>();
 
 const apiItems: ApiItem[] = [
@@ -502,7 +515,7 @@ const performanceCards = computed(() => {
 });
 
 const perfSavedCount = computed(() => {
-  return Math.max(0, perfSize.value - perfRenderedCount.value);
+  return Math.max(0, perfSize.value - perfMountedCount.value);
 });
 
 const shuffleCards = () => {
@@ -518,10 +531,13 @@ const scrollToExampleItem = () => {
 
 const handlePerfVisibleChange = (payload: {
   renderedCount: number;
+  mountedCount: number;
   totalCount: number;
   virtual: boolean;
+  reuse: boolean;
 }) => {
   perfRenderedCount.value = payload.renderedCount;
+  perfMountedCount.value = payload.mountedCount;
 };
 
 watch(
@@ -917,7 +933,7 @@ h2 {
 
 .perf-meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
   margin-top: 18px;
 }
