@@ -363,6 +363,56 @@
           </MasonryGrid>
         </div>
       </div>
+
+      <div class="legacy-perf-head">
+        <div>
+          <p class="section-kicker">旧方案压力测试</p>
+          <h2>LegacyWaterfall 长列表测试</h2>
+        </div>
+        <p class="section-copy">
+          这一块不做虚拟滚动，也没有复用池，会直接挂载全部数据，用来体感对比旧方案。
+        </p>
+      </div>
+
+      <div class="perf-meta perf-meta--legacy">
+        <article class="perf-meta__item">
+          <strong>{{ perfSize }}</strong>
+          <span>总数据量</span>
+        </article>
+        <article class="perf-meta__item">
+          <strong>{{ perfSize }}</strong>
+          <span>当前可见数据项数</span>
+        </article>
+        <article class="perf-meta__item">
+          <strong>{{ perfSize }}</strong>
+          <span>当前挂载的卡片容器数</span>
+        </article>
+        <article class="perf-meta__item">
+          <strong>0</strong>
+          <span>节省的卡片容器数</span>
+        </article>
+      </div>
+
+      <div class="perf-board perf-board--legacy">
+        <div class="perf-scroll">
+          <LegacyWaterfall
+            :data="performanceCards"
+            :col="4"
+            :gap="12"
+            :row-gap="12"
+            resolution="1"
+            :expand="0"
+          >
+            <template #item="{ item, index }">
+              <article class="perf-tile">
+                <div class="perf-tile__media" :style="item.mediaStyle">
+                  <span class="perf-tile__index">#{{ index + 1 }}</span>
+                </div>
+              </article>
+            </template>
+          </LegacyWaterfall>
+        </div>
+      </div>
     </section>
   </main>
 </template>
@@ -1050,6 +1100,22 @@ h2 {
   box-shadow: 0 14px 44px rgba(95, 69, 31, 0.08);
 }
 
+.perf-board--legacy {
+  margin-top: 16px;
+}
+
+.legacy-perf-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 30px;
+}
+
+.perf-meta--legacy {
+  margin-top: 16px;
+}
+
 .perf-scroll {
   height: 72vh;
   overflow: auto;
@@ -1097,6 +1163,11 @@ h2 {
   .perf-meta,
   .perf-mode-grid {
     grid-template-columns: 1fr;
+  }
+
+  .legacy-perf-head {
+    align-items: start;
+    flex-direction: column;
   }
 }
 
