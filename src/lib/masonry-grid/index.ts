@@ -1,8 +1,16 @@
 import MasonryGrid from "./MasonryGrid.vue";
 
 export { MasonryGrid };
+export { computeMasonryLayout } from "./layout";
+export type {
+  LayoutItem,
+  LayoutOptions,
+  LayoutPosition,
+  LayoutResult,
+} from "./layout";
 export type {
   AspectRatio,
+  AspectRatioResolver,
   BooleanResolver,
   HeightResolver,
   ItemKey,
@@ -10,7 +18,6 @@ export type {
   KeyResolver,
   MasonryGridProps,
   ScrollAlign,
-  ScrollTarget,
 } from "./types";
 
 export default MasonryGrid;

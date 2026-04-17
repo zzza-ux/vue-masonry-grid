@@ -1,3 +1,5 @@
+import type { CSSProperties } from "vue";
+
 export type AspectRatio = string | number;
 export type ItemKey = string | number;
 export type ItemLike = Record<string, any>;
@@ -8,7 +10,9 @@ export type BooleanResolver =
 export type HeightResolver =
   | string
   | ((item: ItemLike, index: number) => number | undefined);
-export type ScrollTarget = "parent" | "window";
+export type AspectRatioResolver =
+  | string
+  | ((item: ItemLike, index: number) => AspectRatio | undefined);
 export type ScrollAlign = "start" | "center" | "end";
 
 export interface MasonryGridProps {
@@ -24,9 +28,25 @@ export interface MasonryGridProps {
   designWidth?: number;
   itemKey?: KeyResolver;
   itemHeight?: HeightResolver;
+  itemAspectRatio?: AspectRatioResolver;
   fullRow?: BooleanResolver;
   virtual?: boolean;
   reuse?: boolean;
   overscan?: number;
-  scrollTarget?: ScrollTarget;
+}
+
+export interface RenderItem {
+  key: ItemKey;
+  index: number;
+  data: ItemLike;
+  style: CSSProperties;
+  hidden?: boolean;
+  poolSlotId?: number;
+}
+
+export interface LayoutSnapshot {
+  styles: CSSProperties[];
+  tops: number[];
+  bottoms: number[];
+  height: number;
 }

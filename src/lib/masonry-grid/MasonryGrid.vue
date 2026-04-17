@@ -2,7 +2,7 @@
   <div
     ref="rootRef"
     class="masonry-grid"
-    :style="{ height: containerHeight + 'px' }"
+    :style="rootStyle"
   >
     <div
       v-for="item in renderedItems"
@@ -22,27 +22,19 @@ import {
   onBeforeUnmount,
   onMounted,
   ref,
-  shallowReactive,
+  shallowRef,
   watch,
   type CSSProperties,
 } from "vue";
-import type { ItemKey, ItemLike, MasonryGridProps, ScrollAlign } from "./types";
-import { computeMasonryLayout } from "./layout.js";
+import type { ItemKey, ItemLike, LayoutSnapshot, MasonryGridProps, RenderItem, ScrollAlign } from "./types";
+import { computeMasonryLayout } from "./layout";
 
-interface MasonryPosition {
-  style: CSSProperties;
-  topValue: number;
-  bottomValue: number;
-}
-
-interface RenderItem {
-  key: ItemKey;
-  index: number;
-  data: ItemLike;
-  style: CSSProperties;
-  hidden?: boolean;
-  poolSlotId?: number;
-}
+const EMPTY_LAYOUT: LayoutSnapshot = {
+  styles: [],
+  tops: [],
+  bottoms: [],
+  height: 0,
+};
 
 const emit = defineEmits<{
   visibleChange: [
@@ -66,27 +58,36 @@ const props = withDefaults(defineProps<MasonryGridProps>(), {
   virtual: false,
   reuse: false,
   overscan: 200,
-  scrollTarget: "parent",
 });
 
+// ─── DOM refs ───────────────────────────────────────────────
 const rootRef = ref<HTMLElement>();
-const positions = shallowReactive<MasonryPosition[]>([]);
-const containerWidth = ref(0);
-const containerHeight = ref(0);
-const viewportHeight = ref(0);
-const scrollTop = ref(0);
-const containerOffsetTop = ref(0);
 
-let colHeights: number[] = [];
-let scrollContainer: HTMLElement | Window | null = null;
+// ─── Layout state (changes only on reflow) ─────────────────
+const layoutData = shallowRef<LayoutSnapshot>(EMPTY_LAYOUT);
+const containerWidth = ref(0);
+
+// ─── Scroll state (changes on scroll) ──────────────────────
+const scrollY = ref(0);
+const viewHeight = ref(0);
+// Stable offset — only recalculated on layout or container resize,
+// never in the scroll hot path (avoids forced reflow from getBoundingClientRect)
+const offsetTop = ref(0);
+
+// ─── Internal handles ──────────────────────────────────────
+let scrollEl: HTMLElement | Window | null = null;
 let rootObserver: ResizeObserver | null = null;
 let scrollObserver: ResizeObserver | null = null;
 let reflowRaf = 0;
+let scrollRaf = 0;
 
-const pooledRenderedItems = ref<RenderItem[]>([]);
-const poolSize = ref(0);
+// ─── Reuse pool ────────────────────────────────────────────
+const poolItems = shallowRef<RenderItem[]>([]);
+const poolMaxSize = ref(0);
 
 const isBrowser = typeof window !== "undefined";
+
+// ─── Derived props ─────────────────────────────────────────
 const resolvedRowGap = computed(() => props.rowGap ?? props.gap);
 const scaledExtraHeight = computed(() => {
   if (!props.scaleExtraHeight) return props.extraHeight;
@@ -94,29 +95,73 @@ const scaledExtraHeight = computed(() => {
   return (props.extraHeight / props.designWidth) * containerWidth.value;
 });
 
+const rootStyle = computed(() => ({ height: layoutData.value.height + "px" }));
+
+// ─── Helpers ───────────────────────────────────────────────
 const resolveItemKey = (item: ItemLike, index: number): ItemKey => {
   if (typeof props.itemKey === "function") return props.itemKey(item, index);
-  const key = item?.[props.itemKey];
-  return key ?? index;
+  return item?.[props.itemKey] ?? index;
 };
 
-const resetReusePool = () => {
-  poolSize.value = 0;
-  pooledRenderedItems.value = [];
+const readScrollTop = (): number => {
+  if (!scrollEl) return 0;
+  if (scrollEl === window) return window.scrollY || 0;
+  return (scrollEl as HTMLElement).scrollTop;
 };
 
-const computeLayout = () => {
+const readViewHeight = (): number => {
+  if (!scrollEl) return 0;
+  if (scrollEl === window) return window.innerHeight || 0;
+  return (scrollEl as HTMLElement).clientHeight;
+};
+
+const updateOffsetTop = () => {
+  const el = rootRef.value;
+  if (!el || !scrollEl) return;
+  if (scrollEl === window) {
+    offsetTop.value =
+      el.getBoundingClientRect().top + (window.scrollY || 0);
+  } else {
+    const parent = scrollEl as HTMLElement;
+    offsetTop.value =
+      el.getBoundingClientRect().top +
+      parent.scrollTop -
+      parent.getBoundingClientRect().top;
+  }
+};
+
+const syncScrollState = () => {
+  scrollY.value = readScrollTop();
+  viewHeight.value = readViewHeight();
+};
+
+const findScrollParent = (el: HTMLElement): HTMLElement | Window => {
+  let parent = el.parentElement;
+  while (parent) {
+    const { overflowY } = getComputedStyle(parent);
+    if (/(auto|scroll|overlay)/.test(overflowY)) return parent;
+    parent = parent.parentElement;
+  }
+  return window;
+};
+
+// ─── Layout computation ────────────────────────────────────
+const doLayout = () => {
+  if (reflowRaf) {
+    cancelAnimationFrame(reflowRaf);
+    reflowRaf = 0;
+  }
+
   const el = rootRef.value;
   if (!el) return;
-  resetReusePool();
-  const columns = Math.max(1, props.columns);
+
   containerWidth.value = el.offsetWidth;
   if (!containerWidth.value) return;
 
-  const layout = computeMasonryLayout({
+  const result = computeMasonryLayout({
     items: props.data,
     containerWidth: containerWidth.value,
-    columns,
+    columns: Math.max(1, props.columns),
     gap: props.gap,
     rowGap: resolvedRowGap.value,
     aspectRatio: props.aspectRatio,
@@ -124,106 +169,37 @@ const computeLayout = () => {
     maxAspectRatio: props.maxAspectRatio,
     extraHeight: scaledExtraHeight.value,
     itemHeight: props.itemHeight,
+    itemAspectRatio: props.itemAspectRatio,
     fullRow: props.fullRow,
   });
 
-  positions.splice(0, positions.length);
-  layout.positions.forEach((position, index) => {
-    positions[index] = {
-      style: {
-        left: position.left + "px",
-        top: position.top + "px",
-        width: position.width + "px",
-        height: position.height + "px",
-      },
-      topValue: position.topValue,
-      bottomValue: position.bottomValue,
+  const n = result.positions.length;
+  const styles: CSSProperties[] = new Array(n);
+  const tops: number[] = new Array(n);
+  const bottoms: number[] = new Array(n);
+
+  for (let i = 0; i < n; i++) {
+    const p = result.positions[i];
+    styles[i] = {
+      left: p.left + "px",
+      top: p.top + "px",
+      width: p.width + "px",
+      height: p.height + "px",
     };
-  });
-
-  containerHeight.value = layout.containerHeight;
-  updateContainerMetrics();
-};
-
-const getWindowScrollTop = () => {
-  if (!isBrowser) return 0;
-  return (
-    window.scrollY ||
-    document.documentElement.scrollTop ||
-    document.body.scrollTop ||
-    0
-  );
-};
-
-const getWindowHeight = () => {
-  if (!isBrowser) return 0;
-  return window.innerHeight || document.documentElement.clientHeight || 0;
-};
-
-const getScrollParent = (el: HTMLElement) => {
-  let parent = el.parentElement;
-  while (parent) {
-    const style = window.getComputedStyle(parent);
-    const overflowY = style.overflowY;
-    if (/(auto|scroll|overlay)/.test(overflowY)) {
-      return parent;
-    }
-    parent = parent.parentElement;
-  }
-  return window;
-};
-
-const updateContainerMetrics = () => {
-  const el = rootRef.value;
-  if (!el || !scrollContainer) return;
-
-  if (scrollContainer === window) {
-    viewportHeight.value = getWindowHeight();
-    scrollTop.value = getWindowScrollTop();
-    containerOffsetTop.value =
-      el.getBoundingClientRect().top + getWindowScrollTop();
-    return;
+    tops[i] = p.top;
+    bottoms[i] = p.top + p.height;
   }
 
-  const parent = scrollContainer as HTMLElement;
-  viewportHeight.value = parent.clientHeight;
-  scrollTop.value = parent.scrollTop;
-  containerOffsetTop.value =
-    el.getBoundingClientRect().top +
-    parent.scrollTop -
-    parent.getBoundingClientRect().top;
-};
+  // Single reactive trigger — replaces shallowReactive splice
+  layoutData.value = { styles, tops, bottoms, height: result.containerHeight };
 
-const onScroll = () => {
-  updateContainerMetrics();
-};
+  // DOM reads for offset (safe here — not in scroll hot path)
+  updateOffsetTop();
+  syncScrollState();
 
-const bindScrollContainer = () => {
-  if (!rootRef.value || !isBrowser) return;
-  unbindScrollContainer();
-
-  scrollContainer =
-    props.scrollTarget === "window" ? window : getScrollParent(rootRef.value);
-  scrollContainer.addEventListener("scroll", onScroll, { passive: true });
-
-  if (scrollContainer === window) {
-    viewportHeight.value = getWindowHeight();
-  } else {
-    const parent = scrollContainer as HTMLElement;
-    viewportHeight.value = parent.clientHeight;
-    scrollObserver = new ResizeObserver(() => updateContainerMetrics());
-    scrollObserver.observe(parent);
-  }
-
-  updateContainerMetrics();
-};
-
-const unbindScrollContainer = () => {
-  if (!scrollContainer) return;
-  scrollContainer.removeEventListener("scroll", onScroll as EventListener);
-  scrollContainer = null;
-  scrollObserver?.disconnect();
-  scrollObserver = null;
+  // Reset reuse pool
+  poolMaxSize.value = 0;
+  poolItems.value = [];
 };
 
 const scheduleReflow = () => {
@@ -231,130 +207,185 @@ const scheduleReflow = () => {
   if (reflowRaf) cancelAnimationFrame(reflowRaf);
   reflowRaf = requestAnimationFrame(() => {
     reflowRaf = 0;
-    computeLayout();
+    doLayout();
   });
 };
 
-const rawRenderedItems = computed<RenderItem[]>(() => {
-  const list: RenderItem[] = [];
-  const minVisibleTop = scrollTop.value - props.overscan;
-  const maxVisibleBottom =
-    scrollTop.value + viewportHeight.value + props.overscan;
-
-  positions.forEach((position, index) => {
-    if (!position) return;
-    const top = position.topValue + containerOffsetTop.value;
-    const bottom = position.bottomValue + containerOffsetTop.value;
-    const isVisible =
-      !props.virtual || (bottom > minVisibleTop && top < maxVisibleBottom);
-    if (!isVisible) return;
-
-    list.push({
-      key: resolveItemKey(props.data[index], index),
-      index,
-      data: props.data[index],
-      style: position.style,
-    });
+// ─── Scroll handling (RAF-batched) ─────────────────────────
+const onScroll = () => {
+  if (scrollRaf) return;
+  scrollRaf = requestAnimationFrame(() => {
+    scrollRaf = 0;
+    scrollY.value = readScrollTop();
+    viewHeight.value = readViewHeight();
   });
+};
 
+const bindScrollContainer = () => {
+  if (!rootRef.value || !isBrowser) return;
+  unbindScrollContainer();
+
+  scrollEl = findScrollParent(rootRef.value);
+
+  scrollEl.addEventListener("scroll", onScroll, { passive: true });
+
+  if (scrollEl !== window) {
+    const parent = scrollEl as HTMLElement;
+    scrollObserver = new ResizeObserver(() => {
+      updateOffsetTop();
+      syncScrollState();
+    });
+    scrollObserver.observe(parent);
+  }
+
+  syncScrollState();
+};
+
+const unbindScrollContainer = () => {
+  if (scrollRaf) {
+    cancelAnimationFrame(scrollRaf);
+    scrollRaf = 0;
+  }
+  if (!scrollEl) return;
+  scrollEl.removeEventListener("scroll", onScroll as EventListener);
+  scrollEl = null;
+  scrollObserver?.disconnect();
+  scrollObserver = null;
+};
+
+// ─── Virtual scroll: visible items ─────────────────────────
+const rawRenderedItems = computed<RenderItem[]>(() => {
+  const { styles, tops, bottoms } = layoutData.value;
+  const n = styles.length;
+  if (!n) return [];
+
+  const data = props.data;
+
+  // Non-virtual fast path — skip visibility checks entirely
+  if (!props.virtual) {
+    const list: RenderItem[] = new Array(n);
+    for (let i = 0; i < n; i++) {
+      list[i] = {
+        key: resolveItemKey(data[i], i),
+        index: i,
+        data: data[i],
+        style: styles[i],
+      };
+    }
+    return list;
+  }
+
+  // Virtual mode — only items overlapping viewport + overscan
+  const os = props.overscan;
+  const off = offsetTop.value;
+  const minTop = scrollY.value - os - off;
+  const maxBottom = scrollY.value + viewHeight.value + os - off;
+
+  const list: RenderItem[] = [];
+  for (let i = 0; i < n; i++) {
+    if (bottoms[i] > minTop && tops[i] < maxBottom) {
+      list.push({
+        key: resolveItemKey(data[i], i),
+        index: i,
+        data: data[i],
+        style: styles[i],
+      });
+    }
+  }
   return list;
 });
 
+// ─── Reuse pool ────────────────────────────────────────────
 watch(
   rawRenderedItems,
   (items) => {
     if (!props.virtual || !props.reuse) {
-      pooledRenderedItems.value = items;
+      poolItems.value = items;
       return;
     }
 
-    poolSize.value = Math.max(poolSize.value, items.length);
+    poolMaxSize.value = Math.max(poolMaxSize.value, items.length);
+    const maxSlots = poolMaxSize.value;
 
-    const previousItems = pooledRenderedItems.value;
-    const previousByIndex = new Map(
-      previousItems
-        .filter((item) => !item.hidden)
-        .map((item) => [item.index, item] as const)
-    );
-    const previousBySlot = new Map(
-      previousItems.map((item) => [item.poolSlotId ?? -1, item] as const)
-    );
-
-    const nextItems: RenderItem[] = [];
-    const usedSlotIds = new Set<number>();
-
-    items.forEach((item) => {
-      const matched = previousByIndex.get(item.index);
-      if (matched?.poolSlotId === undefined) return;
-
-      nextItems.push({
-        ...item,
-        key: `reuse-${matched.poolSlotId}`,
-        poolSlotId: matched.poolSlotId,
-      });
-      usedSlotIds.add(matched.poolSlotId);
-    });
-
-    items.forEach((item) => {
-      if (nextItems.some((existing) => existing.index === item.index)) return;
-
-      let slotId;
-      for (let index = 0; index < poolSize.value; index++) {
-        if (!usedSlotIds.has(index)) {
-          slotId = index;
-          break;
-        }
+    const prev = poolItems.value;
+    const prevByIndex = new Map<number, RenderItem>();
+    const prevBySlot = new Map<number, RenderItem>();
+    for (const item of prev) {
+      if (item.poolSlotId !== undefined) {
+        prevBySlot.set(item.poolSlotId, item);
+        if (!item.hidden) prevByIndex.set(item.index, item);
       }
+    }
 
-      if (slotId === undefined) return;
+    const next: RenderItem[] = [];
+    const usedSlots = new Set<number>();
+    const assignedIndices = new Set<number>();
 
-      nextItems.push({
+    // Phase 1: retain existing slot assignments for still-visible items
+    for (const item of items) {
+      const matched = prevByIndex.get(item.index);
+      if (matched?.poolSlotId !== undefined) {
+        next.push({
+          ...item,
+          key: `reuse-${matched.poolSlotId}`,
+          poolSlotId: matched.poolSlotId,
+        });
+        usedSlots.add(matched.poolSlotId);
+        assignedIndices.add(item.index);
+      }
+    }
+
+    // Phase 2: assign free slots to newly visible items (cursor avoids O(n²))
+    let cursor = 0;
+    for (const item of items) {
+      if (assignedIndices.has(item.index)) continue;
+      while (cursor < maxSlots && usedSlots.has(cursor)) cursor++;
+      if (cursor >= maxSlots) break;
+      next.push({
         ...item,
-        key: `reuse-${slotId}`,
-        poolSlotId: slotId,
+        key: `reuse-${cursor}`,
+        poolSlotId: cursor,
       });
-      usedSlotIds.add(slotId);
-    });
+      usedSlots.add(cursor);
+      cursor++;
+    }
 
-    for (let slotId = 0; slotId < poolSize.value; slotId++) {
-      if (usedSlotIds.has(slotId)) continue;
-
-      const previous = previousBySlot.get(slotId);
-      if (!previous) continue;
-
-      nextItems.push({
-        ...previous,
+    // Phase 3: hide unused slots to keep DOM alive
+    for (let slotId = 0; slotId < maxSlots; slotId++) {
+      if (usedSlots.has(slotId)) continue;
+      const old = prevBySlot.get(slotId);
+      if (!old) continue;
+      next.push({
+        ...old,
         key: `reuse-${slotId}`,
         poolSlotId: slotId,
         hidden: true,
-        style: {
-          ...previous.style,
-          display: "none",
-        },
+        style: { ...old.style, display: "none" },
       });
     }
 
-    pooledRenderedItems.value = nextItems.sort((a, b) => {
-      return (a.poolSlotId ?? 0) - (b.poolSlotId ?? 0);
-    });
+    // Stable DOM order
+    next.sort((a, b) => (a.poolSlotId ?? 0) - (b.poolSlotId ?? 0));
+    poolItems.value = next;
   },
   { immediate: true }
 );
 
+// ─── Final render list ─────────────────────────────────────
 const renderedItems = computed<RenderItem[]>(() => {
-  if (!props.virtual || !props.reuse) return rawRenderedItems.value;
-  return pooledRenderedItems.value;
+  return props.virtual && props.reuse
+    ? poolItems.value
+    : rawRenderedItems.value;
 });
 
+// ─── Emit visibility stats ─────────────────────────────────
 watch(
   renderedItems,
   (items) => {
-    const mountedCount =
-      props.virtual && props.reuse ? poolSize.value : items.length;
-
     emit("visibleChange", {
       renderedCount: rawRenderedItems.value.length,
-      mountedCount,
+      mountedCount:
+        props.virtual && props.reuse ? poolMaxSize.value : items.length,
       totalCount: props.data.length,
       virtual: props.virtual,
       reuse: props.reuse,
@@ -363,51 +394,50 @@ watch(
   { immediate: true }
 );
 
+// ─── Public API ────────────────────────────────────────────
 const reflow = async () => {
   await nextTick();
   bindScrollContainer();
-  computeLayout();
+  doLayout();
 };
 
 const reset = async () => {
-  positions.splice(0, positions.length);
-  containerHeight.value = 0;
-  resetReusePool();
+  layoutData.value = EMPTY_LAYOUT;
+  poolMaxSize.value = 0;
+  poolItems.value = [];
   await reflow();
 };
 
 const scrollToIndex = (index: number, align: ScrollAlign = "start") => {
-  const target = positions[index];
-  if (!target || !scrollContainer) return;
+  const { tops, bottoms } = layoutData.value;
+  if (index < 0 || index >= tops.length || !scrollEl) return;
 
-  let nextTop = target.topValue + containerOffsetTop.value;
-  if (align === "center") {
-    nextTop -=
-      viewportHeight.value / 2 - (target.bottomValue - target.topValue) / 2;
-  }
-  if (align === "end") {
-    nextTop -= viewportHeight.value - (target.bottomValue - target.topValue);
-  }
+  const itemTop = tops[index] + offsetTop.value;
+  const itemH = bottoms[index] - tops[index];
+  let target = itemTop;
+  if (align === "center") target -= viewHeight.value / 2 - itemH / 2;
+  if (align === "end") target -= viewHeight.value - itemH;
 
-  if (scrollContainer === window) {
-    window.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
-    return;
-  }
+  const opts: ScrollToOptions = {
+    top: Math.max(0, target),
+    behavior: "smooth",
+  };
 
-  const parent = scrollContainer as HTMLElement;
-  parent.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
+  if (scrollEl === window) {
+    window.scrollTo(opts);
+  } else {
+    (scrollEl as HTMLElement).scrollTo(opts);
+  }
 };
 
-defineExpose({
-  reflow,
-  reset,
-  scrollToIndex,
-});
+defineExpose({ reflow, reset, scrollToIndex });
 
-watch(() => props.data, scheduleReflow);
-watch(() => props.data.length, scheduleReflow);
+// ─── Watchers ──────────────────────────────────────────────
+// Layout-affecting props only — virtual/reuse/overscan/itemKey don't need reflow
 watch(
   () => [
+    props.data,
+    props.data.length,
     props.columns,
     props.gap,
     props.rowGap,
@@ -417,23 +447,20 @@ watch(
     props.extraHeight,
     props.scaleExtraHeight,
     props.designWidth,
-    props.virtual,
-    props.reuse,
-    props.overscan,
-    props.scrollTarget,
-    props.itemKey,
     props.itemHeight,
+    props.itemAspectRatio,
     props.fullRow,
   ],
   scheduleReflow
 );
 
+// ─── Lifecycle ─────────────────────────────────────────────
 onMounted(() => {
   if (!rootRef.value || !isBrowser) return;
   bindScrollContainer();
   rootObserver = new ResizeObserver(scheduleReflow);
   rootObserver.observe(rootRef.value);
-  computeLayout();
+  doLayout();
 });
 
 onBeforeUnmount(() => {

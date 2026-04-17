@@ -134,7 +134,8 @@ const updateLayout = () => {
     };
   });
 
-  containerHeight.value = Math.max(0, ...colHeights);
+  const maxHeight = Math.max(0, ...colHeights);
+  containerHeight.value = positions.length > 0 ? maxHeight - (props.rowGap ?? props.gap) : 0;
 };
 
 const visibleItems = computed(() => {
