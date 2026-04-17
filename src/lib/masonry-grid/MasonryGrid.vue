@@ -1,16 +1,11 @@
 <template>
-  <div
-    ref="rootRef"
-    class="masonry-grid"
-    :style="rootStyle"
-  >
-    <div
-      v-for="item in renderedItems"
-      :key="item.key"
-      class="masonry-grid__item"
-      :style="item.style"
-    >
+  <div ref="rootRef" class="masonry-grid" :style="rootStyle">
+    <div v-for="item in renderedItems" :key="item.key" class="masonry-grid__item" :style="item.style">
       <slot name="item" :item="item.data" :index="item.index"></slot>
+      <div v-if="debug" class="masonry-grid__debug">
+        <span>key:{{ item.key }}</span>
+        <span>idx:{{ item.index }}</span>
+      </div>
     </div>
   </div>
 </template>
@@ -196,10 +191,6 @@ const doLayout = () => {
   // DOM reads for offset (safe here — not in scroll hot path)
   updateOffsetTop();
   syncScrollState();
-
-  // Reset reuse pool
-  poolMaxSize.value = 0;
-  poolItems.value = [];
 };
 
 const scheduleReflow = () => {
@@ -256,7 +247,8 @@ const unbindScrollContainer = () => {
 // ─── Virtual scroll: visible items ─────────────────────────
 const rawRenderedItems = computed<RenderItem[]>(() => {
   const { styles, tops, bottoms } = layoutData.value;
-  const n = styles.length;
+  // Guard: data may shrink before layoutData catches up (RAF-deferred reflow)
+  const n = Math.min(styles.length, props.data.length);
   if (!n) return [];
 
   const data = props.data;
@@ -317,15 +309,30 @@ watch(
       }
     }
 
+    // Fast path: visible set AND style refs unchanged — skip entirely.
+    // Style-ref check is critical: on reflow (gap/columns/etc.) the same
+    // indices stay visible but get new style objects — we must update.
+    if (items.length === prevByIndex.size) {
+      let same = true;
+      for (const item of items) {
+        const matched = prevByIndex.get(item.index);
+        if (!matched || matched.style !== item.style) { same = false; break; }
+      }
+      if (same) return;
+    }
+
     const next: RenderItem[] = [];
     const usedSlots = new Set<number>();
     const assignedIndices = new Set<number>();
 
     // Phase 1: retain existing slot assignments for still-visible items
+    // Reuse exact object reference when style/data unchanged (scroll-only);
+    // create new object with updated style on layout reflow, keeping same slot
     for (const item of items) {
       const matched = prevByIndex.get(item.index);
       if (matched?.poolSlotId !== undefined) {
-        next.push({
+        const reusable = item.style === matched.style && item.data === matched.data;
+        next.push(reusable ? matched : {
           ...item,
           key: `reuse-${matched.poolSlotId}`,
           poolSlotId: matched.poolSlotId,
@@ -355,13 +362,18 @@ watch(
       if (usedSlots.has(slotId)) continue;
       const old = prevBySlot.get(slotId);
       if (!old) continue;
-      next.push({
-        ...old,
-        key: `reuse-${slotId}`,
-        poolSlotId: slotId,
-        hidden: true,
-        style: { ...old.style, display: "none" },
-      });
+      // Already hidden — reuse exact reference
+      if (old.hidden) {
+        next.push(old);
+      } else {
+        next.push({
+          ...old,
+          key: `reuse-${slotId}`,
+          poolSlotId: slotId,
+          hidden: true,
+          style: { ...old.style, display: "none" },
+        });
+      }
     }
 
     // Stable DOM order
@@ -478,5 +490,23 @@ onBeforeUnmount(() => {
 
 .masonry-grid__item {
   position: absolute;
+}
+
+.masonry-grid__debug {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font: 11px/1 monospace;
+  color: #fff;
+  pointer-events: none;
+}
+
+.masonry-grid__debug span {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.45);
 }
 </style>

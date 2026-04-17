@@ -9,12 +9,12 @@
       </p>
     </section>
 
-    <!-- ─── Interactive Playground ────────────────────────── -->
+    <!-- ─── Interactive Playground & Stress Test ─────────── -->
     <section class="playground">
       <div class="section-heading">
         <div>
           <p class="section-kicker">交互演练场</p>
-          <h2>实时预览</h2>
+          <h2>实时预览 · 长列表压力测试</h2>
         </div>
         <div class="btn-group">
           <button class="ghost-btn" @click="shuffleCards">打乱卡片</button>
@@ -23,9 +23,20 @@
       </div>
 
       <div class="control-panel">
+        <div class="chip-row">
+          <span class="chip-row__label">sample</span>
+          <button
+            v-for="s in sampleSizes"
+            :key="s"
+            :class="['perf-chip', { 'perf-chip--active': sampleSize === s }]"
+            @click="sampleSize = s"
+          >
+            {{ s >= 1000 ? `${s / 1000}k` : s }}
+          </button>
+        </div>
         <label>
           <span>columns</span>
-          <input v-model.number="columns" type="range" min="2" max="5" />
+          <input v-model.number="columns" type="range" min="1" max="6" />
           <strong>{{ columns }}</strong>
         </label>
         <label>
@@ -39,19 +50,17 @@
           <strong>{{ rowGap }}px</strong>
         </label>
         <label>
-          <span>extraHeight</span>
-          <input v-model.number="extraHeight" type="range" min="0" max="80" />
-          <strong>{{ extraHeight }}px</strong>
-        </label>
-        <label>
-          <span>aspectRatio</span>
-          <select v-model="aspectRatio">
-            <option v-for="r in ratioOptions" :key="r" :value="r">{{ r }}</option>
-          </select>
+          <span>overscan</span>
+          <input v-model.number="overscan" type="range" min="0" max="800" step="50" />
+          <strong>{{ overscan }}px</strong>
         </label>
         <label class="toggle">
           <input v-model="virtual" type="checkbox" />
           <span>virtual</span>
+        </label>
+        <label class="toggle">
+          <input v-model="reuse" type="checkbox" />
+          <span>reuse</span>
         </label>
         <label class="toggle">
           <input v-model="windowScroll" type="checkbox" />
@@ -59,66 +68,99 @@
         </label>
       </div>
 
-      <div class="playground-grid">
-        <div class="playground-preview">
-          <section :class="['demo-frame', { 'demo-frame--window': windowScroll }]">
-            <div v-if="!windowScroll" class="inner-scroll">
-              <MasonryGrid
-                ref="gridRef"
-                :data="cards"
-                :columns="columns"
-                :gap="colGap"
-                :row-gap="rowGap"
-                :aspect-ratio="aspectRatio"
-                :extra-height="extraHeight"
-                item-key="id"
-                :virtual="virtual"
-                :item-height="useCustomHeight ? customHeight : undefined"
-              >
-                <template #item="{ item, index }">
-                  <article class="demo-card" :style="item.cardStyle">
-                    <div class="demo-card__media" :style="item.mediaStyle">
-                      <span class="demo-card__badge">#{{ index + 1 }}</span>
-                    </div>
-                    <div v-if="extraHeight > 0" class="demo-card__footer">
-                      {{ item.title }}
-                    </div>
-                  </article>
-                </template>
-              </MasonryGrid>
-            </div>
-
-            <MasonryGrid
-              v-else
-              ref="gridRef"
-              :data="cards"
-              :columns="columns"
-              :gap="colGap"
-              :row-gap="rowGap"
-              :aspect-ratio="aspectRatio"
-              :extra-height="extraHeight"
-              item-key="id"
-              :virtual="virtual"
-              :item-height="useCustomHeight ? customHeight : undefined"
-            >
-              <template #item="{ item, index }">
-                <article class="demo-card" :style="item.cardStyle">
-                  <div class="demo-card__media" :style="item.mediaStyle">
-                    <span class="demo-card__badge">#{{ index + 1 }}</span>
-                  </div>
-                  <div v-if="extraHeight > 0" class="demo-card__footer">
-                    {{ item.title }}
-                  </div>
-                </article>
-              </template>
-            </MasonryGrid>
-          </section>
-        </div>
-
-        <div class="playground-code">
-          <pre class="code-block"><code>{{ usageExample }}</code></pre>
-        </div>
+      <div class="perf-meta">
+        <article class="perf-meta__item">
+          <strong>{{ cards.length }}</strong>
+          <span>总数据量</span>
+        </article>
+        <article class="perf-meta__item">
+          <strong>{{ mountedCount }}</strong>
+          <span>挂载 DOM 数</span>
+        </article>
+        <article class="perf-meta__item perf-meta__item--fps" :data-level="fpsLevel">
+          <strong>{{ fps }}</strong>
+          <span>滚动 FPS</span>
+        </article>
+        <article class="perf-meta__item">
+          <strong>{{ savedCount }}</strong>
+          <span>节省 DOM 数</span>
+        </article>
       </div>
+
+      <section :class="['demo-frame', { 'demo-frame--window': windowScroll }]">
+        <div v-if="!windowScroll" class="inner-scroll" @scroll="onScroll">
+          <MasonryGrid
+            ref="gridRef"
+            :data="cards"
+            :columns="columns"
+            :gap="colGap"
+            :row-gap="rowGap"
+            item-key="id"
+            :virtual="virtual"
+            :reuse="reuse"
+            :overscan="overscan"
+            :item-height="(item: any) => item.h"
+            @visible-change="handleVisibleChange"
+          >
+            <template #item="{ item, index }">
+              <article class="perf-tile">
+                <div class="perf-tile__media" :style="item.mediaStyle">
+                  <span class="perf-tile__index">#{{ index + 1 }}</span>
+                  <div class="perf-tile__overlay"></div>
+                </div>
+                <div class="perf-tile__body">
+                  <p class="perf-tile__title">{{ item.title }}</p>
+                  <div class="perf-tile__meta">
+                    <span class="perf-tile__avatar" :style="item.avatarStyle"></span>
+                    <span class="perf-tile__author">{{ item.author }}</span>
+                    <span class="perf-tile__dot">·</span>
+                    <span class="perf-tile__views">{{ item.views }}</span>
+                  </div>
+                  <div class="perf-tile__tags">
+                    <span v-for="t in item.tags" :key="t" class="perf-tile__tag">{{ t }}</span>
+                  </div>
+                </div>
+              </article>
+            </template>
+          </MasonryGrid>
+        </div>
+
+        <MasonryGrid
+          v-else
+          ref="gridRef"
+          :data="cards"
+          :columns="columns"
+          :gap="colGap"
+          :row-gap="rowGap"
+          item-key="id"
+          :virtual="virtual"
+          :reuse="reuse"
+          :overscan="overscan"
+          :item-height="(item: any) => item.h"
+          @visible-change="handleVisibleChange"
+        >
+          <template #item="{ item, index }">
+            <article class="perf-tile">
+              <div class="perf-tile__media" :style="item.mediaStyle">
+                <span class="perf-tile__index">#{{ index + 1 }}</span>
+                <div class="perf-tile__overlay"></div>
+              </div>
+              <div class="perf-tile__body">
+                <p class="perf-tile__title">{{ item.title }}</p>
+                <div class="perf-tile__meta">
+                  <span class="perf-tile__avatar" :style="item.avatarStyle"></span>
+                  <span class="perf-tile__author">{{ item.author }}</span>
+                  <span class="perf-tile__dot">·</span>
+                  <span class="perf-tile__views">{{ item.views }}</span>
+                </div>
+                <div class="perf-tile__tags">
+                  <span v-for="t in item.tags" :key="t" class="perf-tile__tag">{{ t }}</span>
+                </div>
+              </div>
+            </article>
+          </template>
+        </MasonryGrid>
+      </section>
     </section>
 
     <!-- ─── Feature: fullRow ─────────────────────────────── -->
@@ -137,12 +179,11 @@
           :data="fullRowCards"
           :columns="3"
           :gap="12"
-          :row-gap="12"
-          aspect-ratio="3/2"
           :extra-height="0"
           item-key="id"
+          item-aspect-ratio="ratio"
           :full-row="(item: any) => item.isBanner"
-          :item-height="(item: any) => item.isBanner ? 100 : undefined"
+          :debug="true"
         >
           <template #item="{ item }">
             <article :class="['demo-card', { 'demo-card--banner': item.isBanner }]">
@@ -177,6 +218,7 @@
               :row-gap="10"
               item-key="id"
               item-height="h"
+              :debug="true"
             >
               <template #item="{ item }">
                 <article class="demo-card">
@@ -198,6 +240,7 @@
               :row-gap="10"
               item-key="id"
               item-aspect-ratio="ratio"
+              :debug="true"
             >
               <template #item="{ item }">
                 <article class="demo-card">
@@ -234,6 +277,7 @@
               :row-gap="8"
               item-key="id"
               item-height="h"
+              :debug="true"
             >
               <template #item="{ item }">
                 <article class="demo-card">
@@ -258,6 +302,7 @@
               :max-aspect-ratio="1.8"
               item-key="id"
               :item-height="(item: any) => item.clampedH"
+              :debug="true"
             >
               <template #item="{ item }">
                 <article class="demo-card">
@@ -272,87 +317,80 @@
       </div>
     </section>
 
-    <!-- ─── Performance ──────────────────────────────────── -->
-    <section class="perf-section">
+    <!-- ─── Feature: data append / replace ─────────────────── -->
+    <section class="feature-section">
       <div class="section-heading">
         <div>
-          <p class="section-kicker">性能</p>
-          <h2>长列表压力测试</h2>
+          <p class="section-kicker">动态数据</p>
+          <h2>追加 / 替换</h2>
         </div>
         <p class="section-copy">
-          切换样本量、虚拟滚动与复用池，观察 DOM 挂载数变化。不等高卡片让可见项数在滚动时波动。
+          模拟真实场景：「加载更多」向尾部追加数据，「换一批」整体替换数据源。组件自动 reflow，虚拟滚动状态正确衔接。
         </p>
       </div>
-
-      <div class="perf-toolbar">
-        <button
-          v-for="size in perfSizes"
-          :key="size"
-          :class="['perf-chip', { 'perf-chip--active': perfSize === size }]"
-          @click="perfSize = size"
-        >
-          {{ size }} 项
-        </button>
-        <button
-          :class="['perf-chip', { 'perf-chip--active': perfVirtual }]"
-          @click="perfVirtual = !perfVirtual"
-        >
-          virtual {{ perfVirtual ? "ON" : "OFF" }}
-        </button>
-        <button
-          :class="['perf-chip', { 'perf-chip--active': perfReuse }]"
-          @click="perfReuse = !perfReuse"
-        >
-          reuse {{ perfReuse ? "ON" : "OFF" }}
-        </button>
-        <label class="perf-chip perf-chip--slider">
-          <span>overscan</span>
-          <input v-model.number="perfOverscan" type="range" min="0" max="800" step="50" />
-          <strong>{{ perfOverscan }}px</strong>
-        </label>
-      </div>
-
-      <div class="perf-meta">
-        <article class="perf-meta__item">
-          <strong>{{ perfSize }}</strong>
-          <span>总数据量</span>
-        </article>
-        <article class="perf-meta__item">
-          <strong>{{ perfRenderedCount }}</strong>
-          <span>当前可见项数</span>
-        </article>
-        <article class="perf-meta__item">
-          <strong>{{ perfMountedCount }}</strong>
-          <span>挂载 DOM 数</span>
-        </article>
-        <article class="perf-meta__item">
-          <strong>{{ perfSavedCount }}</strong>
-          <span>节省 DOM 数</span>
-        </article>
-      </div>
-
-      <div class="perf-board">
-        <div class="perf-scroll">
-          <MasonryGrid
-            :data="performanceCards"
-            :columns="4"
-            :gap="10"
-            :row-gap="10"
-            item-key="id"
-            :virtual="perfVirtual"
-            :reuse="perfReuse"
-            :overscan="perfOverscan"
-            :item-height="(item: any) => item.h"
-            @visible-change="handlePerfVisibleChange"
-          >
-            <template #item="{ item, index }">
-              <article class="perf-tile">
-                <div class="perf-tile__media" :style="item.mediaStyle">
-                  <span class="perf-tile__index">#{{ index + 1 }}</span>
-                </div>
-              </article>
-            </template>
-          </MasonryGrid>
+      <div class="feature-compare">
+        <div>
+          <p class="feature-label">追加数据（模拟加载更多）</p>
+          <div class="dynamic-toolbar">
+            <button class="ghost-btn" @click="appendItems">+ 追加 10 条</button>
+            <button class="ghost-btn" @click="appendReset">重置</button>
+            <span class="dynamic-count">共 {{ appendList.length }} 条</span>
+          </div>
+          <div class="feature-preview feature-preview--scroll">
+            <MasonryGrid
+              :data="appendList"
+              :columns="3"
+              :gap="10"
+              :row-gap="10"
+              item-key="id"
+              :virtual="true"
+              :overscan="200"
+              :item-height="(item: any) => item.h"
+              :debug="true"
+            >
+              <template #item="{ item, index }">
+                <article class="demo-card">
+                  <div class="demo-card__media" :style="item.mediaStyle">
+                    <span class="demo-card__badge">#{{ index + 1 }}</span>
+                  </div>
+                </article>
+              </template>
+            </MasonryGrid>
+          </div>
+        </div>
+        <div>
+          <p class="feature-label">替换数据（模拟切换频道）</p>
+          <div class="dynamic-toolbar">
+            <button
+              v-for="ch in replaceChannels"
+              :key="ch.name"
+              :class="['ghost-btn', { 'ghost-btn--active': replaceActive === ch.name }]"
+              @click="replaceActive = ch.name"
+            >
+              {{ ch.name }}
+            </button>
+          </div>
+          <div class="feature-preview feature-preview--scroll">
+            <MasonryGrid
+              :data="replaceList"
+              :columns="3"
+              :gap="10"
+              :row-gap="10"
+              item-key="id"
+              :virtual="true"
+              :overscan="200"
+              :item-height="(item: any) => item.h"
+              :debug="true"
+            >
+              <template #item="{ item, index }">
+                <article class="demo-card">
+                  <div class="demo-card__media" :style="item.mediaStyle">
+                    <span class="demo-card__badge">#{{ index + 1 }}</span>
+                  </div>
+                </article>
+              </template>
+            </MasonryGrid>
+          </div>
         </div>
       </div>
     </section>
@@ -402,7 +440,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import MasonryGrid from "./lib/masonry-grid";
 
 type MasonryGridExpose = {
@@ -424,29 +462,44 @@ const gradientOf = (i: number) => {
   return `linear-gradient(135deg, ${s} 0%, ${e} 100%)`;
 };
 
-// ─── Playground state ────────────────────────────────────
-const columns = ref(3);
-const colGap = ref(12);
-const rowGap = ref(12);
-const extraHeight = ref(0);
-const aspectRatio = ref("3/4");
+// ─── Playground state (also doubles as stress test) ──────
+const columns = ref(4);
+const colGap = ref(10);
+const rowGap = ref(10);
 const virtual = ref(true);
+const reuse = ref(false);
+const overscan = ref(200);
 const windowScroll = ref(false);
-const useCustomHeight = ref(false);
-const ratioOptions = ["1/1", "3/4", "4/5", "16/9", "5/7", "3/2"];
 const gridRef = ref<MasonryGridExpose>();
 
-const heightPool = [120, 160, 200, 140, 180, 100, 220, 150];
-const customHeight = (_item: any, index: number) => heightPool[index % heightPool.length];
+const sampleSizes = [100, 500, 3000, 10000, 30000];
+const sampleSize = ref(500);
 
-const cards = ref(
-  Array.from({ length: 36 }, (_, i) => ({
-    id: `card-${i + 1}`,
-    title: `Card ${i + 1}`,
-    cardStyle: { background: "#fffdf8", color: "#2d241a" },
+const cardTitles = [
+  "山海之间的秘境", "午后咖啡手记", "城市漫步指南", "光影里的旧时光",
+  "星空下的独白", "夏日海岸线", "深夜食堂故事", "山顶的第一缕阳光",
+  "老街巷弄", "雨后的森林", "手作陶艺日记", "远行的意义",
+];
+const cardAuthors = ["林野", "苏染", "陈墨", "周也", "顾屿", "温亦"];
+const cardTags = ["旅行", "生活", "摄影", "手作", "美食", "日常", "音乐", "阅读"];
+
+const makePlaygroundCards = (n: number) =>
+  Array.from({ length: n }, (_, i) => ({
+    id: `pg-${i + 1}`,
+    h: 120 + ((i * 47) % 160),
+    title: cardTitles[i % cardTitles.length],
+    author: cardAuthors[i % cardAuthors.length],
+    views: `${((i * 13) % 900) + 100}k`,
+    tags: [cardTags[i % cardTags.length], cardTags[(i * 3 + 1) % cardTags.length]],
     mediaStyle: { background: gradientOf(i) },
-  }))
-);
+    avatarStyle: { background: gradientOf(i + 2) },
+  }));
+
+const cards = ref(makePlaygroundCards(sampleSize.value));
+
+watch(sampleSize, (n) => {
+  cards.value = makePlaygroundCards(n);
+});
 
 const shuffleCards = () => {
   cards.value = [...cards.value]
@@ -459,26 +512,69 @@ const scrollToExampleItem = () => {
   gridRef.value?.scrollToIndex(19, "center");
 };
 
-const usageExample = computed(() => `<MasonryGrid
-  :data="list"
-  :columns="${columns.value}"
-  :gap="${colGap.value}"
-  :row-gap="${rowGap.value}"
-  aspect-ratio="${aspectRatio.value}"
-  :extra-height="${extraHeight.value}"
-  item-key="id"
-  :virtual="${virtual.value}"
->
-  <template #item="{ item }">
-    <Card :item="item" />
-  </template>
-</MasonryGrid>`);
+// ─── Runtime metrics ────────────────────────────────────
+const mountedCount = ref(0);
+const savedCount = computed(() => Math.max(0, cards.value.length - mountedCount.value));
+
+const handleVisibleChange = (payload: { mountedCount: number }) => {
+  mountedCount.value = payload.mountedCount;
+};
+
+// ─── FPS monitor ────────────────────────────────────────
+const fps = ref(60);
+const fpsLevel = computed(() =>
+  fps.value >= 55 ? "good" : fps.value >= 30 ? "mid" : "bad"
+);
+let fpsRaf = 0;
+let fpsFrames = 0;
+let fpsLastTime = performance.now();
+let fpsActive = false;
+let scrollStopTimer = 0;
+
+const startFpsLoop = () => {
+  if (fpsActive) return;
+  fpsActive = true;
+  fpsFrames = 0;
+  fpsLastTime = performance.now();
+  const tick = () => {
+    if (!fpsActive) return;
+    fpsFrames++;
+    const now = performance.now();
+    const elapsed = now - fpsLastTime;
+    if (elapsed >= 500) {
+      fps.value = Math.round((fpsFrames * 1000) / elapsed);
+      fpsFrames = 0;
+      fpsLastTime = now;
+    }
+    fpsRaf = requestAnimationFrame(tick);
+  };
+  fpsRaf = requestAnimationFrame(tick);
+};
+
+const stopFpsLoop = () => {
+  fpsActive = false;
+  if (fpsRaf) {
+    cancelAnimationFrame(fpsRaf);
+    fpsRaf = 0;
+  }
+};
+
+const onScroll = () => {
+  startFpsLoop();
+  clearTimeout(scrollStopTimer);
+  scrollStopTimer = window.setTimeout(stopFpsLoop, 500);
+};
+
+if (typeof window !== "undefined") {
+  window.addEventListener("scroll", onScroll, { passive: true });
+}
 
 // ─── fullRow demo ────────────────────────────────────────
 const fullRowCards = computed(() =>
   Array.from({ length: 9 }, (_, i) => ({
     id: `fr-${i}`,
     isBanner: i === 3 || i === 7,
+    ratio: i === 3 || i === 7 ? 8 : '16/9',
     mediaStyle: { background: gradientOf(i) },
   }))
 );
@@ -531,34 +627,36 @@ const ratioClampCardsConstrained = computed(() => {
   });
 });
 
-// ─── Performance section ────────────────────────────────
-const perfSizes = [200, 500, 1000, 3000];
-const perfSize = ref(500);
-const perfVirtual = ref(true);
-const perfReuse = ref(false);
-const perfOverscan = ref(200);
-const perfRenderedCount = ref(0);
-const perfMountedCount = ref(0);
+// ─── Data append / replace demo ────────────────────────
+const makeCards = (start: number, count: number, prefix: string) =>
+  Array.from({ length: count }, (_, i) => {
+    const idx = start + i;
+    return {
+      id: `${prefix}-${idx}`,
+      h: 80 + ((idx * 47) % 140),
+      mediaStyle: { background: gradientOf(idx) },
+    };
+  });
 
-const performanceCards = computed(() =>
-  Array.from({ length: perfSize.value }, (_, i) => ({
-    id: `perf-${i + 1}`,
-    h: 80 + ((i * 47) % 140),
-    mediaStyle: { background: gradientOf(i) },
-  }))
-);
-
-const perfSavedCount = computed(() =>
-  Math.max(0, perfSize.value - perfMountedCount.value)
-);
-
-const handlePerfVisibleChange = (payload: {
-  renderedCount: number;
-  mountedCount: number;
-}) => {
-  perfRenderedCount.value = payload.renderedCount;
-  perfMountedCount.value = payload.mountedCount;
+const appendList = ref(makeCards(0, 20, "ap"));
+const appendItems = () => {
+  const next = makeCards(appendList.value.length, 10, "ap");
+  appendList.value = [...appendList.value, ...next];
 };
+const appendReset = () => {
+  appendList.value = makeCards(0, 20, "ap");
+};
+
+const replaceChannels = [
+  { name: "推荐", seed: 0 },
+  { name: "热门", seed: 100 },
+  { name: "最新", seed: 200 },
+];
+const replaceActive = ref("推荐");
+const replaceList = computed(() => {
+  const ch = replaceChannels.find((c) => c.name === replaceActive.value) ?? replaceChannels[0];
+  return makeCards(ch.seed, 30, `rp-${ch.seed}`);
+});
 
 // ─── API reference ──────────────────────────────────────
 const apiProps = [
@@ -572,6 +670,7 @@ const apiProps = [
   { name: "scaleExtraHeight", type: "boolean", desc: "extraHeight 是否按容器宽度与 designWidth 等比缩放。" },
   { name: "itemKey", type: "string | function", desc: "列表项 key 解析策略。" },
   { name: "itemHeight", type: "string | function", desc: "自定义高度：字段名或 (item, index) => number。" },
+  { name: "itemAspectRatio", type: "string | function", desc: "逐项宽高比：字段名或 (item, index) => string | number。优先级低于 itemHeight。" },
   { name: "fullRow", type: "string | function", desc: "通栏判断：字段名或 (item, index) => boolean。" },
   { name: "virtual", type: "boolean", desc: "开启虚拟滚动，只渲染可视区附近的项。" },
   { name: "reuse", type: "boolean", desc: "开启 DOM 复用池，减少挂载/卸载开销。需配合 virtual。" },
@@ -713,6 +812,20 @@ h3 {
   background: #f6eee0;
 }
 
+.chip-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chip-row__label {
+  font-size: 13px;
+  color: #9f7a49;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
 /* ─── Playground ───────────────────────── */
 .playground {
   margin-top: 28px;
@@ -838,6 +951,34 @@ h3 {
   color: #5d4d3a;
 }
 
+/* ─── Dynamic data ────────────────────────*/
+.dynamic-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.dynamic-count {
+  font-size: 13px;
+  color: #9f7a49;
+}
+
+.ghost-btn--active {
+  background: #2d241a;
+  color: #fff8ed;
+  border-color: transparent;
+}
+
+.feature-preview--scroll {
+  height: 420px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 24px;
+  background: rgba(255,255,255,.76);
+  box-shadow: 0 14px 44px rgba(95,69,31,.08);
+}
+
 /* ─── Perf ─────────────────────────────── */
 .perf-section {
   margin-top: 40px;
@@ -917,28 +1058,114 @@ h3 {
 }
 
 .perf-tile {
+  display: flex;
+  flex-direction: column;
   height: 100%;
   overflow: hidden;
   border-radius: 16px;
-  box-shadow: 0 6px 18px rgba(100,73,35,.1);
+  background: #fffdf8;
+  box-shadow: 0 8px 22px rgba(100,73,35,.12), 0 1px 3px rgba(100,73,35,.06);
 }
 
 .perf-tile__media {
   position: relative;
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 60px;
+  overflow: hidden;
+}
+
+.perf-tile__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.25) 100%);
+  backdrop-filter: saturate(1.1);
+  pointer-events: none;
 }
 
 .perf-tile__index {
   position: absolute;
   top: 8px;
   left: 8px;
-  padding: 3px 7px;
+  z-index: 1;
+  padding: 3px 8px;
   border-radius: 999px;
   background: rgba(255,255,255,.24);
   color: white;
   font-size: 11px;
+  backdrop-filter: blur(6px);
 }
+
+.perf-tile__body {
+  flex: 0 0 auto;
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.perf-tile__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2d241a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.perf-tile__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #8a7458;
+}
+
+.perf-tile__avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.6);
+  flex-shrink: 0;
+}
+
+.perf-tile__author {
+  max-width: 80px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.perf-tile__dot {
+  opacity: .5;
+}
+
+.perf-tile__views {
+  color: #b29678;
+}
+
+.perf-tile__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.perf-tile__tag {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #f6eee0;
+  color: #9f7a49;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.perf-meta__item--fps strong {
+  transition: color .2s ease;
+}
+
+.perf-meta__item--fps[data-level="good"] strong { color: #2f8d5c; }
+.perf-meta__item--fps[data-level="mid"]  strong { color: #c78a1a; }
+.perf-meta__item--fps[data-level="bad"]  strong { color: #c7442f; }
 
 /* ─── API ──────────────────────────────── */
 .api-section {

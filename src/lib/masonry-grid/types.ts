@@ -33,6 +33,7 @@ export interface MasonryGridProps {
   virtual?: boolean;
   reuse?: boolean;
   overscan?: number;
+  debug?: boolean;
 }
 
 export interface RenderItem {
