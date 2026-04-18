@@ -1,6 +1,6 @@
 {
   "name": "vue-masonry-grid",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Vue 3 masonry grid component with virtualization, reusable DOM pool, and an interactive demo app.",
   "type": "module",
   "main": "./dist/lib/masonry-grid.umd.cjs",
@@ -26,6 +26,8 @@
     "build": "npm run build:demo && npm run build:lib",
     "build:demo": "vite build",
     "build:lib": "vite build --mode lib && vue-tsc -p tsconfig.lib.json --declaration --emitDeclarationOnly --declarationDir dist/lib",
+    "prepack": "node scripts/swap-readme.mjs use",
+    "postpack": "node scripts/swap-readme.mjs restore",
     "preview": "vite preview",
     "test": "npm run test:unit",
     "test:unit": "node --import tsx --test tests/*.test.mjs"
