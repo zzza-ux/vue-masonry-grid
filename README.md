@@ -1,33 +1,126 @@
-# MasonryGrid 中文演示项目
+# MasonryGrid
 
-独立示例项目，放在 `/Users/mac/Desktop/thrid/masonry-grid-demo`，用于演示 `MasonryGrid` 的核心能力：
+`MasonryGrid` 是一个面向 Vue 3 的瀑布流组件，支持虚拟滚动、DOM 复用池、逐项高度控制、通栏项和滚动定位。本仓库采用方案 A：同一个仓库里同时包含可复用组件库和演示 demo。
 
-- 多列瀑布流
-- 不同宽高比卡片
-- 虚拟滚动开关
-- 容器滚动 / `window` 滚动切换
-- `scrollToIndex()` 调用示例
-- API 说明卡片
-- 可复制的基础接入代码片段
-- `LegacyWaterfall` 与 `MasonryGrid` 的迁移对比区
-- 长列表压力测试与虚拟滚动收益展示
+## 仓库结构
 
-## 运行
+- `src/lib/masonry-grid`: 组件源码与对外导出入口
+- `src/App.vue`: 演示页面
+- `tests`: 核心布局逻辑单元测试
+- `dist/lib`: 组件库构建产物
+- `dist/demo`: demo 站点构建产物
 
-如果当前机器上已经有 `/Users/mac/Desktop/work/one/one-h5-client/node_modules`，这个 demo 可以通过软链接直接复用依赖。
+## 组件能力
+
+- 多列瀑布流布局
+- `virtual` 虚拟滚动
+- `reuse` DOM 复用池
+- `itemHeight` / `itemAspectRatio` 逐项尺寸控制
+- `fullRow` 通栏项
+- `scrollToIndex()`、`reflow()`、`reset()` 实例方法
+- 独立导出的 `computeMasonryLayout()` 布局函数，方便测试或自定义封装
+
+## 安装
 
 ```bash
-cd /Users/mac/Desktop/thrid/masonry-grid-demo
+npm install vue-masonry-grid
+```
+
+如果你只是想本地体验 demo：
+
+```bash
+npm install
 npm run dev
 ```
 
-## 文件
+## 基础使用
 
-- `src/lib/masonry-grid/MasonryGrid.vue`: 组件实现
-- `src/lib/masonry-grid/types.ts`: 对外类型定义
-- `src/lib/masonry-grid/index.ts`: 组件导出入口
-- `src/lib/masonry-grid/layout.js`: 可单测的核心布局逻辑
-- `src/components/LegacyWaterfall.vue`: 保留旧接口语义的对照组件
-- `src/App.vue`: 中文交互演示页 + API/用法说明区
-- `tests/masonry-layout.test.mjs`: 布局单元测试
-- `src/style.css`: 全局样式
+```vue
+<script setup lang="ts">
+import { ref } from "vue";
+import { MasonryGrid } from "vue-masonry-grid";
+import "vue-masonry-grid/style.css";
+
+const items = ref([
+  { id: 1, height: 180 },
+  { id: 2, height: 240 },
+  { id: 3, height: 160 },
+]);
+</script>
+
+<template>
+  <MasonryGrid
+    :data="items"
+    :columns="2"
+    :gap="12"
+    item-key="id"
+    item-height="height"
+  >
+    <template #item="{ item }">
+      <div class="card">{{ item.id }}</div>
+    </template>
+  </MasonryGrid>
+</template>
+```
+
+## 对外导出
+
+```ts
+import { MasonryGrid, computeMasonryLayout } from "vue-masonry-grid";
+import type {
+  MasonryGridProps,
+  ScrollAlign,
+  LayoutOptions,
+  LayoutResult,
+} from "vue-masonry-grid";
+```
+
+## Props
+
+| Prop | 说明 | 默认值 |
+| --- | --- | --- |
+| `data` | 数据数组 | 必填 |
+| `columns` | 列数 | `2` |
+| `gap` | 列间距 | `10` |
+| `rowGap` | 行间距，默认继承 `gap` | `gap` |
+| `aspectRatio` | 默认宽高比，支持数字或 `"4/3"` | `1` |
+| `minAspectRatio` / `maxAspectRatio` | 宽高比约束 | - |
+| `extraHeight` | 附加高度 | `0` |
+| `scaleExtraHeight` | 是否按 `designWidth` 缩放附加高度 | `false` |
+| `designWidth` | 设计稿宽度 | `375` |
+| `itemKey` | 唯一 key 字段或函数 | `"id"` |
+| `itemHeight` | 逐项高度字段或函数 | - |
+| `itemAspectRatio` | 逐项宽高比字段或函数 | - |
+| `fullRow` | 是否通栏，支持字段或函数 | - |
+| `virtual` | 是否开启虚拟滚动 | `false` |
+| `reuse` | 虚拟滚动下是否启用 DOM 复用池 | `false` |
+| `overscan` | 视口额外渲染范围 | `200` |
+| `debug` | 显示调试信息 | `false` |
+
+## Events
+
+- `visibleChange`: 返回当前渲染数量、挂载数量、总数，以及 `virtual` / `reuse` 状态
+
+## Expose
+
+- `reflow()`: 重新测量容器并布局
+- `reset()`: 清空内部缓存后重新布局
+- `scrollToIndex(index, align?)`: 平滑滚动到指定项，`align` 支持 `start`、`center`、`end`
+
+## 开发
+
+```bash
+npm install
+npm run dev
+npm run test
+npm run build
+```
+
+其中：
+
+- `npm run build:demo` 构建演示站
+- `npm run build:lib` 构建组件库与类型声明
+
+## License
+
+MIT

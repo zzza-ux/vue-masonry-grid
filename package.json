@@ -1,22 +1,61 @@
 {
-  "name": "masonry-grid-demo",
-  "private": true,
+  "name": "vue-masonry-grid",
   "version": "0.0.1",
+  "description": "Vue 3 masonry grid component with virtualization, reusable DOM pool, and an interactive demo app.",
   "type": "module",
+  "main": "./dist/lib/masonry-grid.umd.cjs",
+  "module": "./dist/lib/masonry-grid.js",
+  "types": "./dist/lib/index.d.ts",
+  "files": [
+    "dist/lib",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "import": "./dist/lib/masonry-grid.js",
+      "require": "./dist/lib/masonry-grid.umd.cjs"
+    },
+    "./style.css": {
+      "default": "./dist/lib/style.css"
+    }
+  },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run build:demo && npm run build:lib",
+    "build:demo": "vite build",
+    "build:lib": "vite build --mode lib && vue-tsc -p tsconfig.lib.json --declaration --emitDeclarationOnly --declarationDir dist/lib",
     "preview": "vite preview",
+    "test": "npm run test:unit",
     "test:unit": "node --import tsx --test tests/*.test.mjs"
   },
-  "dependencies": {
-    "vue": "^3.5.32"
+  "keywords": [
+    "vue",
+    "vue3",
+    "masonry",
+    "waterfall",
+    "virtual-scroll",
+    "component"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zzza-ux/vue-masonry-grid.git"
+  },
+  "homepage": "https://github.com/zzza-ux/vue-masonry-grid#readme",
+  "bugs": {
+    "url": "https://github.com/zzza-ux/vue-masonry-grid/issues"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "vue": "^3.5.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.6",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.8",
+    "vue": "^3.5.32",
     "vue-tsc": "^3.2.6"
   }
 }

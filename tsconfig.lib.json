@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "./src/lib/masonry-grid"
+  },
+  "include": [
+    "src/lib/masonry-grid/**/*.ts",
+    "src/lib/masonry-grid/**/*.vue"
+  ]
+}
